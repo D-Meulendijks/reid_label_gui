@@ -426,7 +426,8 @@ class ImageViewer:
 
             self.image_labels[index].config(image=img, text=self.image_files_list[index][image_index])
             self.image_labels[index].image = img
-            self.image_names[index].config(text=truncated_filename)  # Display image name
+            #self.image_names[index].config(text=truncated_filename)  # Display image name
+            self.image_names[index].config(text=f"{self.current_image_indices[index]}")  # Display image name
             self.top_buttons[index].config(state=tk.NORMAL)
             self.N_top_buttons[index].config(state=tk.NORMAL)
             self.bottom_buttons[index].config(state=tk.NORMAL)
