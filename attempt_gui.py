@@ -8,6 +8,10 @@ MAX_FILENAME_LENGTH = 8
 DESIRED_IMAGE_HEIGHT = 200
 DESIRED_IMAGE_WIDTH = 200
 
+DESIRED_ANCHOR_HEIGHT = 200
+DESIRED_ANCHOR_WIDTH = 200
+NUMBER_OF_SKIPS = 5
+
 class ImageViewer:
     def __init__(self, root):
         self.root = root
@@ -17,7 +21,9 @@ class ImageViewer:
         self.image_frames = []
         self.image_labels = []
         self.top_buttons = []
+        self.N_top_buttons = []
         self.bottom_buttons = []
+        self.N_bottom_buttons = []
         self.image_names = []  # List to store image names
         self.image_info = []  # List to store image info (click status and folder name for each column)
         self.anchor_info = []  # List to store anchor info (anchor image name and folder name for each current_id)
@@ -54,9 +60,12 @@ class ImageViewer:
             image_frame.grid(row=4, column=i, padx=10, pady=10)
             self.image_frames.append(image_frame)
 
+            N_top_button = tk.Button(image_frame, text=f"{NUMBER_OF_SKIPS}x Next", state=tk.DISABLED, command=lambda i=i: self.N_show_next_image(i))
+            N_top_button.pack()
             top_button = tk.Button(image_frame, text="Next image", state=tk.DISABLED, command=lambda i=i: self.show_next_image(i))
             top_button.pack()
             self.top_buttons.append(top_button)
+            self.N_top_buttons.append(N_top_button)
 
             image_label = tk.Label(image_frame, text="", padx=10, pady=10)
             image_label.pack()
@@ -65,7 +74,10 @@ class ImageViewer:
 
             bottom_button = tk.Button(image_frame, text="Previous Image", state=tk.DISABLED, command=lambda i=i: self.show_previous_image(i))
             bottom_button.pack()
+            N_bottom_button = tk.Button(image_frame, text=f"{NUMBER_OF_SKIPS}x Previous", state=tk.DISABLED, command=lambda i=i: self.N_show_previous_image(i))
+            N_bottom_button.pack()
             self.bottom_buttons.append(bottom_button)
+            self.N_bottom_buttons.append(N_bottom_button)
 
             image_name_label = tk.Label(image_frame, text="", padx=10)
             image_name_label.pack()
@@ -160,6 +172,14 @@ class ImageViewer:
         self.date_cutoff_end_label.grid(row=0, column=2, padx=10, pady=10)
         self.date_cutoff_end_entry.grid(row=0, column=3, padx=10, pady=10)
 
+    def N_show_next_image(self, index):
+        for i in range(NUMBER_OF_SKIPS):
+            self.show_next_image(index)
+
+    def N_show_previous_image(self, index):
+        for i in range(NUMBER_OF_SKIPS):
+            self.show_previous_image(index)
+
     def update_date_cutoff_start(self, event):
         try:
             self.date_cutoff_start = int(self.date_cutoff_start_entry.get())
@@ -225,8 +245,30 @@ class ImageViewer:
                 if os.path.isfile(anchor_image_path):
                     try:
                         image = Image.open(anchor_image_path)
-                        image.thumbnail((100, 100))
-                        img = ImageTk.PhotoImage(image)
+                        original_width, original_height = image.size
+                        aspect_ratio = original_width / original_height
+                        
+                        new_width = DESIRED_ANCHOR_WIDTH
+                        new_height = int(DESIRED_ANCHOR_WIDTH / aspect_ratio)
+
+                        # Check if the new height exceeds the desired height
+                        if new_height > new_height:
+                            new_height = DESIRED_ANCHOR_HEIGHT
+                            new_width = int(DESIRED_ANCHOR_HEIGHT * aspect_ratio)
+
+                        # Calculate the padding on the top and bottom
+                        padding_top = (DESIRED_ANCHOR_HEIGHT - new_height) // 2
+                        padding_bottom = DESIRED_ANCHOR_HEIGHT - new_height - padding_top
+
+                        # Calculate the padding on the left and right
+                        padding_left = (DESIRED_ANCHOR_WIDTH - new_width) // 2
+                        padding_right = DESIRED_ANCHOR_WIDTH - new_width - padding_left
+
+                        # Resize and add padding to the image
+                        resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
+                                                                    border=(padding_left, padding_top, padding_right, padding_bottom), 
+                                                                    fill="black")
+                        img = ImageTk.PhotoImage(resized_image_with_padding)
                         self.anchor_image_label.config(image=img)
                         self.anchor_image_label.image = img
                         self.anchor_image = img
@@ -253,8 +295,30 @@ class ImageViewer:
                     self.save_anchor_info()
 
                     image = Image.open(anchor_image_path)
-                    image.thumbnail((100, 100))
-                    img = ImageTk.PhotoImage(image)
+                    original_width, original_height = image.size
+                    aspect_ratio = original_width / original_height
+                    
+                    new_width = DESIRED_ANCHOR_WIDTH
+                    new_height = int(DESIRED_ANCHOR_WIDTH / aspect_ratio)
+
+                    # Check if the new height exceeds the desired height
+                    if new_height > new_height:
+                        new_height = DESIRED_ANCHOR_HEIGHT
+                        new_width = int(DESIRED_ANCHOR_HEIGHT * aspect_ratio)
+
+                    # Calculate the padding on the top and bottom
+                    padding_top = (DESIRED_ANCHOR_HEIGHT - new_height) // 2
+                    padding_bottom = DESIRED_ANCHOR_HEIGHT - new_height - padding_top
+
+                    # Calculate the padding on the left and right
+                    padding_left = (DESIRED_ANCHOR_WIDTH - new_width) // 2
+                    padding_right = DESIRED_ANCHOR_WIDTH - new_width - padding_left
+
+                    # Resize and add padding to the image
+                    resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
+                                                                border=(padding_left, padding_top, padding_right, padding_bottom), 
+                                                                fill="black")
+                    img = ImageTk.PhotoImage(resized_image_with_padding)
                     self.anchor_image_label.config(image=img)
                     self.anchor_image_label.image = img
                     self.anchor_image = img
@@ -307,18 +371,17 @@ class ImageViewer:
         except Exception as e:
             print(f"Error loading image: {e}")
 
-
     def extract_and_update_date(self, filename, index):
         try:
             output_date_string = ""
-            date_string = filename[self.date_cutoff_start:self.date_cutoff_end]
+            date_string = filename[-self.date_cutoff_start:-self.date_cutoff_end]
             for i in range(0, len(date_string), 2):
                 output_date_string += date_string[i:i+2] + ":"
+            output_date_string = output_date_string[:-1]
             self.date_labels[index].config(text=output_date_string)
             print(f"Cutoff from {filename} to {output_date_string}")
         except:
             print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
-
 
     def show_image(self, index, folder_path, image_index):
         try:
@@ -365,7 +428,9 @@ class ImageViewer:
             self.image_labels[index].image = img
             self.image_names[index].config(text=truncated_filename)  # Display image name
             self.top_buttons[index].config(state=tk.NORMAL)
+            self.N_top_buttons[index].config(state=tk.NORMAL)
             self.bottom_buttons[index].config(state=tk.NORMAL)
+            self.N_bottom_buttons[index].config(state=tk.NORMAL)
 
             # Update image click visualization
             self.update_image_click_visualization()
@@ -441,7 +506,6 @@ class ImageViewer:
             # Initialize anchor info with default values if the file doesn't exist
             self.anchor_info = {}
             
-
     def save_anchor_info(self):
         # Save anchor info (anchor image name and folder name for each current_id) to a JSON file
         with open("anchor_info.json", "w") as json_file:
@@ -460,7 +524,6 @@ class ImageViewer:
             self.folder_paths = [""] * 5
             self.current_id = 0
             self.current_image_indices = [0] * 5
-
 
     def save_settings(self):
         # Save folder paths, current_id, and current_image_indices to settings.json
