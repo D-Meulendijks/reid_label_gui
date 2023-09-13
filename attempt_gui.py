@@ -16,13 +16,15 @@ class ImageViewer:
         self.bottom_buttons = []
         self.image_names = []  # List to store image names
         self.image_info = []  # List to store image info (click status and folder name for each column)
+        self.anchor_info = []  # List to store anchor info (anchor image name and folder name for each current_id)
         self.image_files_list = []  # List to store image files for each column
         self.current_image_indices = [0, 0, 0, 0, 0]  # Separate current image indices for each column
+        self.current_id = 0
 
         # Load or initialize the image info data from a JSON file
         self.load_image_info()
+        self.load_anchor_info()
         self.load_settings()
-        self.current_id = 0
 
         self.folder_frame = tk.Frame(self.root)
         self.folder_frame.grid(row=8, column=0, columnspan=5)
@@ -119,19 +121,30 @@ class ImageViewer:
         larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.number_label.config(font=larger_font)
         self.update_number_label_with_value(self.current_id)
-
+        self.load_anchor_image()
 
     def previous_anchor(self):
+        if self.current_id < 1:
+            return
         self.current_id -= 1
-        self.reload_all_images()
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
+        self.load_anchor_image()
+        
+        if self.anchor_info.get(str(self.current_id)) is None:
+            # No new anchor found, remove the anchor image
+            self.clear_anchor_image()
 
     def next_anchor(self):
         self.current_id += 1
-        self.reload_all_images()
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
+        self.load_anchor_image()  # Load anchor image for the new current_id
+
+        # Check if there is an anchor image for the new current_id
+        if self.anchor_info.get(str(self.current_id)) is None:
+            # No new anchor found, remove the anchor image
+            self.clear_anchor_image()
 
     def print_message1(self):
         print("Button 1 clicked")
@@ -146,15 +159,45 @@ class ImageViewer:
         # Update the number/variable label with the given value
         self.number_label.config(text=str(value))
 
+
+    def load_anchor_image(self):
+        # Load anchor image if it exists for the current_id
+        anchor_info = self.anchor_info.get(str(self.current_id))
+        if anchor_info:
+            folder_name = anchor_info.get("folder_name")
+            image_name = anchor_info.get("image_name")
+            if folder_name and image_name:
+                anchor_image_path = os.path.join(folder_name, image_name)
+                if os.path.isfile(anchor_image_path):
+                    try:
+                        image = Image.open(anchor_image_path)
+                        image.thumbnail((100, 100))
+                        img = ImageTk.PhotoImage(image)
+                        self.anchor_image_label.config(image=img)
+                        self.anchor_image_label.image = img
+                        self.anchor_image = img
+                        self.anchor_image_name_label.config(text=image_name)
+                        print(f"Loading image: {folder_name}, {image_name}")
+                    except Exception as e:
+                        print(f"Error loading anchor image: {e}")
+                else:
+                    print("Anchor image not found.")
+            else:
+                print("Anchor info missing for the current_id.")
+
     def update_anchor_from_column(self, column_index):
         folder_path = self.folder_paths[column_index].get()
         current_index = self.current_image_indices[column_index]
         if current_index < len(self.image_files_list[column_index]):
             image_name = self.image_files_list[column_index][current_index]
             anchor_image_path = os.path.join(folder_path, image_name)
-
             if os.path.isfile(anchor_image_path):
                 try:
+                    # Update anchor info with the anchor image name and folder name for the current ID
+                    anchor_info = self.anchor_info
+                    anchor_info[self.current_id] = {"image_name": image_name, "folder_name": folder_path}
+                    self.save_anchor_info()
+
                     image = Image.open(anchor_image_path)
                     image.thumbnail((100, 100))
                     img = ImageTk.PhotoImage(image)
@@ -162,25 +205,26 @@ class ImageViewer:
                     self.anchor_image_label.image = img
                     self.anchor_image = img
                     self.anchor_image_name_label.config(text=image_name)
-                    # Update the number/variable label with the desired value
-                    self.update_number_label_with_value(self.current_id)  # Replace 42 with your value
+                    print(f"Loading image: {folder_path}, {image_name}")
                 except Exception as e:
                     print(f"Error loading anchor image: {e}")
             else:
                 print(f"Anchor image not found for column {column_index + 1}.")
 
     def clear_anchor_image(self):
-        self.anchor_image_label.config(image=None)
+        self.anchor_image_label.destroy()
+        self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
+        self.anchor_image_label.grid(row=1, column=0, columnspan=3, sticky='w')
         self.anchor_image = None
         self.anchor_image_path = ""
         self.anchor_image_name_label.config(text="")
-    
+
     def browse_folder(self, index):
         folder_path = filedialog.askdirectory()
         if folder_path:
             self.folder_paths[index].delete(0, tk.END)  # Clear Entry widget
             self.folder_paths[index].insert(0, folder_path)  # Update Entry widget
-            self.load_image(index, self.folder_paths[index].get())
+            self.load_image(index, folder_path)
 
     def update_folder_path(self, event, index):
         folder_path = self.folder_paths[index].get()  # Get the text from the Entry widget
@@ -243,7 +287,7 @@ class ImageViewer:
                 image_info[image_name] = self.current_id
 
             # Update image click visualization
-            self.update_image_click_visualization()                                 
+            self.update_image_click_visualization()
 
     def show_next_image(self, index):
         if hasattr(self, 'image_files_list'):
@@ -285,25 +329,47 @@ class ImageViewer:
         # Save image info (click status and folder name for each column) to a JSON file
         with open("image_info.json", "w") as json_file:
             json.dump(self.image_info, json_file)
-    
+
+    def load_anchor_info(self):
+        try:
+            # Load anchor info (anchor image name and folder name for each current_id) from a JSON file
+            with open("anchor_info.json", "r") as json_file:
+                self.anchor_info = json.load(json_file)
+        except FileNotFoundError:
+            # Initialize anchor info with default values if the file doesn't exist
+            self.anchor_info = {}
+        print(f"SSS: {self.anchor_info}")
+
+    def save_anchor_info(self):
+        # Save anchor info (anchor image name and folder name for each current_id) to a JSON file
+        with open("anchor_info.json", "w") as json_file:
+            json.dump(self.anchor_info, json_file)
+
     def load_settings(self):
         try:
-            # Load folder paths from settings.json
+            # Load settings from settings.json
             with open("settings.json", "r") as json_file:
-                self.folder_paths = json.load(json_file)
-                print(f"KKKK: {self.folder_paths}")
+                settings_data = json.load(json_file)
+                self.folder_paths = settings_data.get("folder_paths", [""] * 5)
+                self.current_id = settings_data.get("current_id", 0)
         except FileNotFoundError:
-            # Initialize folder paths with empty strings if the file doesn't exist
+            # Initialize folder paths with empty strings and current_id with 0 if the file doesn't exist
             self.folder_paths = [""] * 5
+            self.current_id = 0
 
     def save_settings(self):
-        # Save folder paths to settings.json
+        # Save folder paths and current_id to settings.json
+        settings_data = {
+            "folder_paths": [entry.get() for entry in self.folder_paths],
+            "current_id": self.current_id
+        }
         with open("settings.json", "w") as json_file:
-            json.dump([entry.get() for entry in self.folder_paths], json_file)
+            json.dump(settings_data, json_file)
 
     def save_settings_and_image_info(self):
         self.save_settings()
         self.save_image_info()
+        self.save_anchor_info()
         self.root.destroy()
 
 if __name__ == "__main__":
