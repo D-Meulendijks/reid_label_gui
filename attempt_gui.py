@@ -4,6 +4,9 @@ from PIL import Image, ImageTk
 import os
 import json
 
+MAX_FILENAME_LENGTH = 8
+DESIRED_IMAGE_HEIGHT = 200
+
 class ImageViewer:
     def __init__(self, root):
         self.root = root
@@ -256,11 +259,23 @@ class ImageViewer:
         try:
             image_file = os.path.join(folder_path, self.image_files_list[index][image_index])
             image = Image.open(image_file)
-            image.thumbnail((100, 100))
+            # Calculate the width based on the desired height and the original aspect ratio
+            original_width, original_height = image.size
+            aspect_ratio = original_width / original_height
+            new_width = int(DESIRED_IMAGE_HEIGHT * aspect_ratio)
+
+            # Resize the image to the calculated width and desired height
+            image.thumbnail((new_width, DESIRED_IMAGE_HEIGHT))
             img = ImageTk.PhotoImage(image)
+            
+            if len(self.image_files_list[index][image_index]) > MAX_FILENAME_LENGTH:
+                # Truncate the file name to fit within the limit
+                truncated_filename = self.image_files_list[index][image_index][:MAX_FILENAME_LENGTH - 3] + "..."
+            else:
+                truncated_filename = self.image_files_list[index][image_index]
             self.image_labels[index].config(image=img, text=self.image_files_list[index][image_index])
             self.image_labels[index].image = img
-            self.image_names[index].config(text=self.image_files_list[index][image_index])  # Display image name
+            self.image_names[index].config(text=truncated_filename)  # Display image name
             self.top_buttons[index].config(state=tk.NORMAL)
             self.bottom_buttons[index].config(state=tk.NORMAL)
 
