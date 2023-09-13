@@ -126,13 +126,13 @@ class ImageViewer:
         self.additional_frame.grid(row=0, column=5, rowspan=9, padx=10, pady=10)
 
         # Create buttons in the new column
-        button1 = tk.Button(self.additional_frame, text="Button 1", command=self.print_message1)
+        button1 = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
         button1.grid(row=0, column=0, padx=10, pady=10)
 
         button2 = tk.Button(self.additional_frame, text="Button 2", command=self.print_message2)
         button2.grid(row=1, column=0, padx=10, pady=10)
 
-        button3 = tk.Button(self.additional_frame, text="Button 3", command=self.print_message3)
+        button3 = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
         button3.grid(row=2, column=0, padx=10, pady=10)
 
         self.number_label = tk.Label(self.anchor_frame, text="", padx=10)
@@ -221,14 +221,16 @@ class ImageViewer:
             # No new anchor found, remove the anchor image
             self.clear_anchor_image()
 
-    def print_message1(self):
-        print("Button 1 clicked")
+    def next_all(self):
+        for index in range(5):
+            self.show_next_image(index)
 
     def print_message2(self):
         print("Button 2 clicked")
 
-    def print_message3(self):
-        print("Button 3 clicked")
+    def previous_all(self):
+        for index in range(5):
+            self.show_previous_image(index)
 
     def update_number_label_with_value(self, value):
         # Update the number/variable label with the given value
