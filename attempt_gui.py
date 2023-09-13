@@ -24,6 +24,9 @@ class ImageViewer:
         self.image_files_list = []  # List to store image files for each column
         self.current_image_indices = [0, 0, 0, 0, 0]  # Separate current image indices for each column
         self.current_id = 0
+        # Set initial values for date_cutoff_start and date_cutoff_end
+        self.date_cutoff_start = 0
+        self.date_cutoff_end = 0
 
         # Load or initialize the image info data from a JSON file
         self.load_image_info()
@@ -51,7 +54,7 @@ class ImageViewer:
             image_frame.grid(row=4, column=i, padx=10, pady=10)
             self.image_frames.append(image_frame)
 
-            top_button = tk.Button(image_frame, text="Top Button", state=tk.DISABLED, command=lambda i=i: self.show_next_image(i))
+            top_button = tk.Button(image_frame, text="Next image", state=tk.DISABLED, command=lambda i=i: self.show_next_image(i))
             top_button.pack()
             self.top_buttons.append(top_button)
 
@@ -60,7 +63,7 @@ class ImageViewer:
             image_label.bind("<Button-1>", lambda event, index=i: self.toggle_image_click(index))
             self.image_labels.append(image_label)
 
-            bottom_button = tk.Button(image_frame, text="Bottom Button", state=tk.DISABLED, command=lambda i=i: self.show_previous_image(i))
+            bottom_button = tk.Button(image_frame, text="Previous Image", state=tk.DISABLED, command=lambda i=i: self.show_previous_image(i))
             bottom_button.pack()
             self.bottom_buttons.append(bottom_button)
 
@@ -77,7 +80,7 @@ class ImageViewer:
 
         # Create a frame for the anchor image and controls
         self.anchor_frame = tk.Frame(self.root)
-        self.anchor_frame.grid(row=0, column=0, columnspan=5)
+        self.anchor_frame.grid(row=2, column=1, columnspan=3)
 
         # Add an "Anchor" label
         anchor_label = tk.Label(self.anchor_frame, text="Anchor")
@@ -92,13 +95,13 @@ class ImageViewer:
 
         # Add a label for the anchor image name
         self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_name_label.grid(row=1, column=0, columnspan=3)
+        self.anchor_image_name_label.grid(row=1, column=3, columnspan=1)
 
         # Initialize anchor image variables
         self.anchor_image = None
         self.anchor_image_path = ""
         self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_label.grid(row=1, column=0, columnspan=3, sticky='w')
+        self.anchor_image_label.grid(row=1, column=2, columnspan=1, sticky='w')
 
         # Create buttons to update the anchor image for each column
         self.update_anchor_buttons = []
@@ -126,6 +129,54 @@ class ImageViewer:
         self.number_label.config(font=larger_font)
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()
+
+        self.date_labels = []  # List to store date labels
+
+        for i in range(5):
+            # Create a label with an arbitrary date (you can replace it later)
+            date_label = tk.Label(self.root, text="Arbitrary Date", padx=10, pady=10)
+            date_label.grid(row=3, column=i)
+            self.date_labels.append(date_label)
+
+        # Create a label with arbitrary text
+        self.arbitrary_label = tk.Label(self.root, text="Arbitrary Text")
+        self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
+        # Create the Entry widgets for date_cutoff_start and date_cutoff_end
+        self.date_cutoff_start_entry = tk.Entry(self.root, width=5)
+        self.date_cutoff_end_entry = tk.Entry(self.root, width=5)
+        
+        # Create labels next to the Entry widgets
+        self.date_cutoff_start_label = tk.Label(self.root, text="Start Date:")
+        self.date_cutoff_end_label = tk.Label(self.root, text="End Date:")
+        
+        
+        # Add functions to update the variables and print their values
+        self.date_cutoff_start_entry.bind("<FocusOut>", self.update_date_cutoff_start)
+        self.date_cutoff_end_entry.bind("<FocusOut>", self.update_date_cutoff_end)
+        
+        # Place the widgets on the GUI
+        self.date_cutoff_start_label.grid(row=0, column=0, padx=10, pady=10)
+        self.date_cutoff_start_entry.grid(row=0, column=1, padx=10, pady=10)
+        self.date_cutoff_end_label.grid(row=0, column=2, padx=10, pady=10)
+        self.date_cutoff_end_entry.grid(row=0, column=3, padx=10, pady=10)
+
+    def update_date_cutoff_start(self, event):
+        try:
+            self.date_cutoff_start = int(self.date_cutoff_start_entry.get())
+            print(f"Date Cutoff Start updated to: {self.date_cutoff_start}")
+        except ValueError:
+            print("Invalid input for Date Cutoff Start. Please enter an integer.")
+            self.date_cutoff_start_entry.delete(0, tk.END)
+            self.date_cutoff_start_entry.insert(0, str(self.date_cutoff_start))
+
+    def update_date_cutoff_end(self, event):
+        try:
+            self.date_cutoff_end = int(self.date_cutoff_end_entry.get())
+            print(f"Date Cutoff End updated to: {self.date_cutoff_end}")
+        except ValueError:
+            print("Invalid input for Date Cutoff End. Please enter an integer.")
+            self.date_cutoff_end_entry.delete(0, tk.END)
+            self.date_cutoff_end_entry.insert(0, str(self.date_cutoff_end))
 
     def previous_anchor(self):
         if self.current_id < 1:
@@ -256,6 +307,19 @@ class ImageViewer:
         except Exception as e:
             print(f"Error loading image: {e}")
 
+
+    def extract_and_update_date(self, filename, index):
+        try:
+            output_date_string = ""
+            date_string = filename[self.date_cutoff_start:self.date_cutoff_end]
+            for i in range(0, len(date_string), 2):
+                output_date_string += date_string[i:i+2] + ":"
+            self.date_labels[index].config(text=output_date_string)
+            print(f"Cutoff from {filename} to {output_date_string}")
+        except:
+            print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
+
+
     def show_image(self, index, folder_path, image_index):
         try:
             image_file = os.path.join(folder_path, self.image_files_list[index][image_index])
@@ -283,7 +347,7 @@ class ImageViewer:
             # Resize and add padding to the image
             resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
                                                         border=(padding_left, padding_top, padding_right, padding_bottom), 
-                                                        fill="white")
+                                                        fill="black")
 
             # Resize the image to the calculated width and desired height
             image = image.resize((new_width, DESIRED_IMAGE_HEIGHT))
@@ -294,6 +358,9 @@ class ImageViewer:
                 truncated_filename = self.image_files_list[index][image_index][:MAX_FILENAME_LENGTH - 3] + "..."
             else:
                 truncated_filename = self.image_files_list[index][image_index]
+            
+            self.extract_and_update_date(self.image_files_list[index][image_index], index)
+
             self.image_labels[index].config(image=img, text=self.image_files_list[index][image_index])
             self.image_labels[index].image = img
             self.image_names[index].config(text=truncated_filename)  # Display image name
