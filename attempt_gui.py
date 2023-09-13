@@ -130,7 +130,6 @@ class ImageViewer:
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()
-        
         if self.anchor_info.get(str(self.current_id)) is None:
             # No new anchor found, remove the anchor image
             self.clear_anchor_image()
@@ -143,6 +142,7 @@ class ImageViewer:
 
         # Check if there is an anchor image for the new current_id
         if self.anchor_info.get(str(self.current_id)) is None:
+            print(f"No anchor found")
             # No new anchor found, remove the anchor image
             self.clear_anchor_image()
 
@@ -158,7 +158,6 @@ class ImageViewer:
     def update_number_label_with_value(self, value):
         # Update the number/variable label with the given value
         self.number_label.config(text=str(value))
-
 
     def load_anchor_image(self):
         # Load anchor image if it exists for the current_id
@@ -195,7 +194,7 @@ class ImageViewer:
                 try:
                     # Update anchor info with the anchor image name and folder name for the current ID
                     anchor_info = self.anchor_info
-                    anchor_info[self.current_id] = {"image_name": image_name, "folder_name": folder_path}
+                    anchor_info[str(self.current_id)] = {"image_name": image_name, "folder_name": folder_path}
                     self.save_anchor_info()
 
                     image = Image.open(anchor_image_path)
@@ -246,7 +245,7 @@ class ImageViewer:
             image_files = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
             if image_files:
                 self.image_files_list[index] = image_files
-                self.current_image_indices[index] = 0
+                #self.current_image_indices[index] = 0
                 self.show_image(index, folder_path, self.current_image_indices[index])
             else:
                 print("No .jpg files found in the selected folder.")
@@ -338,7 +337,7 @@ class ImageViewer:
         except FileNotFoundError:
             # Initialize anchor info with default values if the file doesn't exist
             self.anchor_info = {}
-        print(f"SSS: {self.anchor_info}")
+            
 
     def save_anchor_info(self):
         # Save anchor info (anchor image name and folder name for each current_id) to a JSON file
@@ -352,16 +351,20 @@ class ImageViewer:
                 settings_data = json.load(json_file)
                 self.folder_paths = settings_data.get("folder_paths", [""] * 5)
                 self.current_id = settings_data.get("current_id", 0)
+                self.current_image_indices = settings_data.get("current_image_indices", [0] * 5)
         except FileNotFoundError:
-            # Initialize folder paths with empty strings and current_id with 0 if the file doesn't exist
+            # Initialize folder paths with empty strings, current_id with 0, and current_image_indices with 0 for all columns
             self.folder_paths = [""] * 5
             self.current_id = 0
+            self.current_image_indices = [0] * 5
+
 
     def save_settings(self):
-        # Save folder paths and current_id to settings.json
+        # Save folder paths, current_id, and current_image_indices to settings.json
         settings_data = {
             "folder_paths": [entry.get() for entry in self.folder_paths],
-            "current_id": self.current_id
+            "current_id": self.current_id,
+            "current_image_indices": self.current_image_indices
         }
         with open("settings.json", "w") as json_file:
             json.dump(settings_data, json_file)
