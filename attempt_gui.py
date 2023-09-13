@@ -1,11 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageOps
 import os
 import json
 
 MAX_FILENAME_LENGTH = 8
 DESIRED_IMAGE_HEIGHT = 200
+DESIRED_IMAGE_WIDTH = 200
 
 class ImageViewer:
     def __init__(self, root):
@@ -262,11 +263,31 @@ class ImageViewer:
             # Calculate the width based on the desired height and the original aspect ratio
             original_width, original_height = image.size
             aspect_ratio = original_width / original_height
-            new_width = int(DESIRED_IMAGE_HEIGHT * aspect_ratio)
+            
+            new_width = DESIRED_IMAGE_WIDTH
+            new_height = int(DESIRED_IMAGE_WIDTH / aspect_ratio)
+
+            # Check if the new height exceeds the desired height
+            if new_height > new_height:
+                new_height = DESIRED_IMAGE_HEIGHT
+                new_width = int(DESIRED_IMAGE_HEIGHT * aspect_ratio)
+
+            # Calculate the padding on the top and bottom
+            padding_top = (DESIRED_IMAGE_HEIGHT - new_height) // 2
+            padding_bottom = DESIRED_IMAGE_HEIGHT - new_height - padding_top
+
+            # Calculate the padding on the left and right
+            padding_left = (DESIRED_IMAGE_WIDTH - new_width) // 2
+            padding_right = DESIRED_IMAGE_WIDTH - new_width - padding_left
+
+            # Resize and add padding to the image
+            resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
+                                                        border=(padding_left, padding_top, padding_right, padding_bottom), 
+                                                        fill="white")
 
             # Resize the image to the calculated width and desired height
-            image.thumbnail((new_width, DESIRED_IMAGE_HEIGHT))
-            img = ImageTk.PhotoImage(image)
+            image = image.resize((new_width, DESIRED_IMAGE_HEIGHT))
+            img = ImageTk.PhotoImage(resized_image_with_padding)
             
             if len(self.image_files_list[index][image_index]) > MAX_FILENAME_LENGTH:
                 # Truncate the file name to fit within the limit
