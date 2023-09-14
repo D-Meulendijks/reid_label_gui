@@ -3,6 +3,7 @@ from tkinter import filedialog
 from PIL import Image, ImageTk, ImageOps
 import os
 import json
+from tkinter import Toplevel
 
 MAX_FILENAME_LENGTH = 8
 DESIRED_IMAGE_HEIGHT = 200
@@ -17,7 +18,8 @@ class ImageViewer:
         self.root = root
         self.root.title("Image Viewer")
 
-        self.folder_paths = [""] * 5  # Initialize with 5 empty Entry widgets
+        self.folder_path_entries = [""] * 5  # Initialize with 5 empty Entry widgets
+        self.folder_paths = [""]* 5 # 5 empty strings
         self.image_frames = []
         self.image_labels = []
         self.top_buttons = []
@@ -25,36 +27,22 @@ class ImageViewer:
         self.bottom_buttons = []
         self.N_bottom_buttons = []
         self.image_names = []  # List to store image names
-        self.image_info = []  # List to store image info (click status and folder name for each column)
+        self.image_info = {}  # dict to store image info (click status and folder name for each column)
         self.anchor_info = []  # List to store anchor info (anchor image name and folder name for each current_id)
         self.image_files_list = []  # List to store image files for each column
         self.current_image_indices = [0, 0, 0, 0, 0]  # Separate current image indices for each column
         self.current_id = 0
         # Set initial values for date_cutoff_start and date_cutoff_end
-        self.date_cutoff_start = 0
-        self.date_cutoff_end = 0
+        self.date_cutoff_start = 10
+        self.date_cutoff_end = 4
 
         # Load or initialize the image info data from a JSON file
+        self.load_settings()
         self.load_image_info()
         self.load_anchor_info()
-        self.load_settings()
 
-        self.folder_frame = tk.Frame(self.root)
-        self.folder_frame.grid(row=8, column=0, columnspan=5)
-
-        for i in range(5):
-            folder_label = tk.Label(self.folder_frame, text=f"Folder {i+1}:")
-            folder_label.grid(row=0, column=i, padx=10, pady=10)
-
-            folder_path_entry = tk.Entry(self.folder_frame)
-            folder_path_entry.grid(row=1, column=i, padx=10, pady=10)
-            folder_path_entry.insert(0, self.folder_paths[i])  # Set initial folder path
-            folder_path_entry.bind('<FocusOut>', lambda event, index=i: self.update_folder_path(event, index))
-            self.folder_paths[i] = folder_path_entry  # Update folder_paths list
-
-            browse_button = tk.Button(self.folder_frame, text="Browse", command=lambda i=i: self.browse_folder(i))
-            browse_button.grid(row=2, column=i, padx=10, pady=10)
-
+        # @@@ Settings
+        self.create_settings_window()
         for i in range(5):
             image_frame = tk.Frame(self.root)
             image_frame.grid(row=4, column=i, padx=10, pady=10)
@@ -85,13 +73,97 @@ class ImageViewer:
 
             # Initialize an empty list for image files
             self.image_files_list.append([])
-
         # Update image clicks and borders to visualize
         self.reload_all_images()
         self.update_image_click_visualization()
 
+        # @@@ Anchor
+        self.create_anchor_window()
+
+        # @@@ Buttons
+        self.additional_frame = tk.Frame(self.root)
+        self.additional_frame.grid(row=0, column=5, rowspan=9, padx=10, pady=10)
+
+        # Create buttons in the new column
+        button1 = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
+        button1.grid(row=0, column=0, padx=10, pady=10)
+
+        button2 = tk.Button(self.additional_frame, text="Button 2", command=self.print_message2)
+        button2.grid(row=1, column=0, padx=10, pady=10)
+
+        button3 = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
+        button3.grid(row=2, column=0, padx=10, pady=10)
+        
+        whitespace = tk.Label(self.additional_frame)
+        whitespace.grid(row=3, column=0, padx=10, pady=10)
+
+        settings_button = tk.Button(self.additional_frame, text="Open settings", command=self.open_settings)
+        settings_button.grid(row=4, column=0, padx=10, pady=10)
+        anchor_button = tk.Button(self.additional_frame, text="Open anchor", command=self.open_anchor)
+        anchor_button.grid(row=5, column=0, padx=10, pady=10)
+
+
+        self.date_labels = []  # List to store date labels
+
+        for i in range(5):
+            # Create a label with an arbitrary date (you can replace it later)
+            date_label = tk.Label(self.root, text="Arbitrary Date", padx=10, pady=10)
+            date_label.grid(row=3, column=i)
+            self.date_labels.append(date_label)
+
+        # Create a label with arbitrary text
+        self.arbitrary_label = tk.Label(self.root, text="Arbitrary Text")
+        self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
+
+
+    def create_settings_window(self):
+        self.settings_window = Toplevel(self.root)  # Create a new top-level window
+        self.settings_window.title("Settings Window")  # Set the title of the new window
+
+        self.folder_frame = tk.Frame(self.settings_window)
+        self.folder_frame.grid(row=0, column=0, columnspan=5)
+
+
+        for i in range(5):
+            folder_label = tk.Label(self.folder_frame, text=f"Folder {i+1}:")
+            folder_label.grid(row=0, column=i, padx=10, pady=10)
+
+            folder_path_entry = tk.Entry(self.folder_frame)
+            folder_path_entry.grid(row=1, column=i, padx=10, pady=10)
+            folder_path_entry.insert(0, self.folder_paths[i])  # Set initial folder path
+            folder_path_entry.bind('<FocusOut>', lambda event, index=i: self.update_folder_path(event, index))
+            self.folder_path_entries[i] = folder_path_entry  # Update folder_paths list
+
+            browse_button = tk.Button(self.folder_frame, text="Browse", command=lambda i=i: self.browse_folder(i))
+            browse_button.grid(row=2, column=i, padx=10, pady=10)
+
+        self.date_cutoff_frame = tk.Frame(self.settings_window)
+        self.date_cutoff_frame.grid(row=1, column=1, columnspan=4)
+
+        # Create the Entry widgets for date_cutoff_start and date_cutoff_end
+        self.date_cutoff_start_entry = tk.Entry(self.date_cutoff_frame, width=5)
+        self.date_cutoff_end_entry = tk.Entry(self.date_cutoff_frame, width=5)
+        
+        # Create labels next to the Entry widgets
+        self.date_cutoff_start_label = tk.Label(self.date_cutoff_frame, text="Start Date:")
+        self.date_cutoff_end_label = tk.Label(self.date_cutoff_frame, text="End Date:")
+        
+        # Add functions to update the variables and print their values
+        self.date_cutoff_start_entry.bind("<FocusOut>", self.update_date_cutoff_start)
+        self.date_cutoff_end_entry.bind("<FocusOut>", self.update_date_cutoff_end)
+        
+        # Place the widgets on the GUI
+        self.date_cutoff_start_label.grid(row=0, column=0, padx=10, pady=10)
+        self.date_cutoff_start_entry.grid(row=0, column=1, padx=10, pady=10)
+        self.date_cutoff_end_label.grid(row=0, column=2, padx=10, pady=10)
+        self.date_cutoff_end_entry.grid(row=0, column=3, padx=10, pady=10)
+
+    def create_anchor_window(self):
+        self.anchor_window = Toplevel(self.root)  # Create a new top-level window
+        self.anchor_window.title("Anchor Window")  # Set the title of the new window
+
         # Create a frame for the anchor image and controls
-        self.anchor_frame = tk.Frame(self.root)
+        self.anchor_frame = tk.Frame(self.anchor_window)
         self.anchor_frame.grid(row=2, column=1, columnspan=3)
 
         # Add an "Anchor" label
@@ -122,55 +194,12 @@ class ImageViewer:
             update_anchor_button.grid(row=5, column=i, padx=10, pady=10)
             self.update_anchor_buttons.append(update_anchor_button)
 
-        self.additional_frame = tk.Frame(self.root)
-        self.additional_frame.grid(row=0, column=5, rowspan=9, padx=10, pady=10)
-
-        # Create buttons in the new column
-        button1 = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
-        button1.grid(row=0, column=0, padx=10, pady=10)
-
-        button2 = tk.Button(self.additional_frame, text="Button 2", command=self.print_message2)
-        button2.grid(row=1, column=0, padx=10, pady=10)
-
-        button3 = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
-        button3.grid(row=2, column=0, padx=10, pady=10)
-
         self.number_label = tk.Label(self.anchor_frame, text="", padx=10)
         self.number_label.grid(row=1, column=2, padx=10, pady=10)
         larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.number_label.config(font=larger_font)
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()
-
-        self.date_labels = []  # List to store date labels
-
-        for i in range(5):
-            # Create a label with an arbitrary date (you can replace it later)
-            date_label = tk.Label(self.root, text="Arbitrary Date", padx=10, pady=10)
-            date_label.grid(row=3, column=i)
-            self.date_labels.append(date_label)
-
-        # Create a label with arbitrary text
-        self.arbitrary_label = tk.Label(self.root, text="Arbitrary Text")
-        self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
-        # Create the Entry widgets for date_cutoff_start and date_cutoff_end
-        self.date_cutoff_start_entry = tk.Entry(self.root, width=5)
-        self.date_cutoff_end_entry = tk.Entry(self.root, width=5)
-        
-        # Create labels next to the Entry widgets
-        self.date_cutoff_start_label = tk.Label(self.root, text="Start Date:")
-        self.date_cutoff_end_label = tk.Label(self.root, text="End Date:")
-        
-        
-        # Add functions to update the variables and print their values
-        self.date_cutoff_start_entry.bind("<FocusOut>", self.update_date_cutoff_start)
-        self.date_cutoff_end_entry.bind("<FocusOut>", self.update_date_cutoff_end)
-        
-        # Place the widgets on the GUI
-        self.date_cutoff_start_label.grid(row=0, column=0, padx=10, pady=10)
-        self.date_cutoff_start_entry.grid(row=0, column=1, padx=10, pady=10)
-        self.date_cutoff_end_label.grid(row=0, column=2, padx=10, pady=10)
-        self.date_cutoff_end_entry.grid(row=0, column=3, padx=10, pady=10)
 
     def N_show_next_image(self, index):
         for i in range(NUMBER_OF_SKIPS):
@@ -202,15 +231,20 @@ class ImageViewer:
         if self.current_id < 1:
             return
         self.current_id -= 1
+        if str(self.current_id) not in self.image_info:
+            self.image_info[str(self.current_id)] = {'image_name':[], 'image_folder':[]}
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()
         if self.anchor_info.get(str(self.current_id)) is None:
             # No new anchor found, remove the anchor image
-            self.clear_anchor_image()
+            self.clear_anchor_image()  
 
     def next_anchor(self):
         self.current_id += 1
+        if str(self.current_id) not in self.image_info:
+            self.image_info[str(self.current_id)] = {'image_name':[], 'image_folder':[]}
+
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()  # Load anchor image for the new current_id
@@ -220,13 +254,25 @@ class ImageViewer:
             print(f"No anchor found")
             # No new anchor found, remove the anchor image
             self.clear_anchor_image()
-
+            
     def next_all(self):
         for index in range(5):
             self.show_next_image(index)
 
+    def open_settings(self):
+        if not self.settings_window.winfo_exists():
+            self.create_settings_window()
+        else:
+            print(f"Settings window already open")
+
+    def open_anchor(self):
+        if not self.anchor_window.winfo_exists():
+            self.create_anchor_window()
+        else:
+            print(f"Anchor window already open")
+
     def print_message2(self):
-        print("Button 2 clicked")
+        pass
 
     def previous_all(self):
         for index in range(5):
@@ -284,7 +330,7 @@ class ImageViewer:
                 print("Anchor info missing for the current_id.")
 
     def update_anchor_from_column(self, column_index):
-        folder_path = self.folder_paths[column_index].get()
+        folder_path = self.folder_paths[column_index]
         current_index = self.current_image_indices[column_index]
         if current_index < len(self.image_files_list[column_index]):
             image_name = self.image_files_list[column_index][current_index]
@@ -342,28 +388,31 @@ class ImageViewer:
     def browse_folder(self, index):
         folder_path = filedialog.askdirectory()
         if folder_path:
-            self.folder_paths[index].delete(0, tk.END)  # Clear Entry widget
-            self.folder_paths[index].insert(0, folder_path)  # Update Entry widget
+            self.folder_path_entries[index].delete(0, tk.END)  # Clear Entry widget
+            self.folder_path_entries[index].insert(0, folder_path)  # Update Entry widget
+            self.folder_paths[index] = folder_path
             self.load_image(index, folder_path)
 
     def update_folder_path(self, event, index):
-        folder_path = self.folder_paths[index].get()  # Get the text from the Entry widget
+        folder_path = self.folder_paths[index]  # Get the text from the Entry widget
         folder_path = folder_path.replace('/', '\\')  # Correct path format for Windows
         folder_path = os.path.normpath(folder_path)  # Normalize path
-        self.folder_paths[index].delete(0, tk.END)  # Clear Entry widget
-        self.folder_paths[index].insert(0, folder_path)  # Update Entry widget
+        self.folder_path_entries[index].delete(0, tk.END)  # Clear Entry widget
+        self.folder_path_entries[index].insert(0, folder_path)  # Update Entry widget
+        self.folder_paths[index] = folder_path
         self.load_image(index, folder_path)
 
     def reload_all_images(self):
         for i, folder_path in enumerate(self.folder_paths):
-            if os.path.isdir(folder_path.get()):
-                self.load_image(i, folder_path.get())
+            if os.path.isdir(folder_path):
+                self.load_image(i, folder_path)
             else:
-                print(f"Error, not a dir: {folder_path.get()}")
+                print(f"Error, not a dir: {folder_path} - {self.folder_paths}")
 
     def load_image(self, index, folder_path):
         try:
             image_files = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
+            image_files_dates = [name[-self.date_cutoff_start:-self.date_cutoff_end] for name in image_files]
             if image_files:
                 self.image_files_list[index] = image_files
                 #self.current_image_indices[index] = 0
@@ -445,16 +494,21 @@ class ImageViewer:
             # Toggle the click status for the current image in its corresponding folder
             image_name = self.image_files_list[index][self.current_image_indices[index]]
             folder_name = self.folder_paths[index]
-            image_info = self.image_info[index]
+            image_info = self.image_info[str(self.current_id)]
 
-            if image_name in image_info:
-                # Check if the current_id matches the stored value
-                if image_info[image_name] == self.current_id:
-                    del image_info[image_name]  # Remove the entry to switch back to default (red)
-                else:
-                    image_info[image_name] = self.current_id
+            in_set = 0
+            if image_name in image_info['image_name']:
+                image_index = image_info['image_name'].index(image_name)
+                if folder_name == image_info['image_folder'][image_index]:
+                    in_set = 1
+
+            if in_set:
+                image_info['image_name'].pop(image_index)
+                image_info['image_folder'].pop(image_index)
             else:
-                image_info[image_name] = self.current_id
+                image_info['image_name'].append(image_name)
+                image_info['image_folder'].append(folder_name)
+
 
             # Update image click visualization
             self.update_image_click_visualization()
@@ -462,25 +516,29 @@ class ImageViewer:
     def show_next_image(self, index):
         if hasattr(self, 'image_files_list'):
             self.current_image_indices[index] = (self.current_image_indices[index] + 1) % len(self.image_files_list[index])
-            self.show_image(index, self.folder_paths[index].get(), self.current_image_indices[index])
+            self.show_image(index, self.folder_paths[index], self.current_image_indices[index])
 
     def show_previous_image(self, index):
         if hasattr(self, 'image_files_list'):
             self.current_image_indices[index] = (self.current_image_indices[index] - 1) % len(self.image_files_list[index])
-            self.show_image(index, self.folder_paths[index].get(), self.current_image_indices[index])
+            self.show_image(index, self.folder_paths[index], self.current_image_indices[index])
 
     def update_image_click_visualization(self):
         for i, image_label in enumerate(self.image_labels):
             if hasattr(self, 'image_files_list') and hasattr(self, 'image_info'):
-                folder_name = self.folder_paths[i]
-                image_info = self.image_info[i]
                 current_index = self.current_image_indices[i]
 
                 if current_index < len(self.image_files_list[i]):
                     image_name = self.image_files_list[i][current_index]
 
                     # Check if the stored value matches the current_id
-                    click_status = image_info.get(image_name, -1) == self.current_id
+                    folder_name = self.folder_paths[i]
+                    image_info = self.image_info[str(self.current_id)]
+                    click_status = False
+                    if image_name in image_info['image_name']:
+                        image_index = image_info['image_name'].index(image_name)
+                        if folder_name == image_info['image_folder'][image_index]:
+                            click_status = True
 
                     # Update the background color of the image frame to visualize the click status
                     background_color = "green" if click_status else "red"
@@ -493,7 +551,7 @@ class ImageViewer:
                 self.image_info = json.load(json_file)
         except FileNotFoundError:
             # Initialize image info with default values if the file doesn't exist
-            self.image_info = [{} for _ in range(5)]
+            self.image_info = {str(self.current_id):{'image_name':[], 'image_folder':[]}}
 
     def save_image_info(self):
         # Save image info (click status and folder name for each column) to a JSON file
@@ -522,6 +580,7 @@ class ImageViewer:
                 self.folder_paths = settings_data.get("folder_paths", [""] * 5)
                 self.current_id = settings_data.get("current_id", 0)
                 self.current_image_indices = settings_data.get("current_image_indices", [0] * 5)
+                print(f"Loaded settings: {self.folder_paths}, {self.current_id}, {self.current_image_indices}")
         except FileNotFoundError:
             # Initialize folder paths with empty strings, current_id with 0, and current_image_indices with 0 for all columns
             self.folder_paths = [""] * 5
@@ -531,7 +590,7 @@ class ImageViewer:
     def save_settings(self):
         # Save folder paths, current_id, and current_image_indices to settings.json
         settings_data = {
-            "folder_paths": [entry.get() for entry in self.folder_paths],
+            "folder_paths": self.folder_paths,
             "current_id": self.current_id,
             "current_image_indices": self.current_image_indices
         }
@@ -543,6 +602,7 @@ class ImageViewer:
         self.save_image_info()
         self.save_anchor_info()
         self.root.destroy()
+
 
 if __name__ == "__main__":
     app = tk.Tk()
