@@ -11,7 +11,13 @@ DESIRED_IMAGE_WIDTH = 200
 
 DESIRED_ANCHOR_HEIGHT = 200
 DESIRED_ANCHOR_WIDTH = 200
+
+DESIRED_SELECTVIEW_HEIGHT = 100
+DESIRED_SELECTVIEW_WIDTH = 100
 NUMBER_OF_SKIPS = 5
+
+SELECTEDVIEW_ROWS = 10
+SELECTEDVIEW_COLUMNS = 10
 
 class ImageViewer:
     def __init__(self, root):
@@ -35,14 +41,29 @@ class ImageViewer:
         # Set initial values for date_cutoff_start and date_cutoff_end
         self.date_cutoff_start = 10
         self.date_cutoff_end = 4
+        self.selectedviewimages_list = []
 
         # Load or initialize the image info data from a JSON file
         self.load_settings()
         self.load_image_info()
         self.load_anchor_info()
 
+        self.create_root_window()
+
+        self.create_selectedview_window()
+        self.create_anchor_window()
+
+
         # @@@ Settings
         self.create_settings_window()
+        # Update image clicks and borders to visualize
+        self.reload_all_images()
+        self.update_image_click_visualization()
+
+        # @@@ Anchor
+        
+
+    def create_root_window(self):
         for i in range(5):
             image_frame = tk.Frame(self.root)
             image_frame.grid(row=4, column=i, padx=10, pady=10)
@@ -73,13 +94,6 @@ class ImageViewer:
 
             # Initialize an empty list for image files
             self.image_files_list.append([])
-        # Update image clicks and borders to visualize
-        self.reload_all_images()
-        self.update_image_click_visualization()
-
-        # @@@ Anchor
-        self.create_anchor_window()
-
         # @@@ Buttons
         self.additional_frame = tk.Frame(self.root)
         self.additional_frame.grid(row=0, column=5, rowspan=9, padx=10, pady=10)
@@ -115,6 +129,12 @@ class ImageViewer:
         self.arbitrary_label = tk.Label(self.root, text="Arbitrary Text")
         self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
 
+    def create_selectedview_window(self):
+        self.selectedview_window = Toplevel(self.root)  # Create a new top-level window
+        self.selectedview_window.title("Selected View Window")  # Set the title of the new window
+
+        self.selectedview_frame = tk.Frame(self.selectedview_window)
+        self.selectedview_frame.grid(row=SELECTEDVIEW_ROWS, column=SELECTEDVIEW_COLUMNS, columnspan=1)
 
     def create_settings_window(self):
         self.settings_window = Toplevel(self.root)  # Create a new top-level window
@@ -179,13 +199,13 @@ class ImageViewer:
 
         # Add a label for the anchor image name
         self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_name_label.grid(row=1, column=3, columnspan=1)
+        self.anchor_image_name_label.grid(row=1, column=1, columnspan=1)
 
         # Initialize anchor image variables
-        self.anchor_image = None
+        
         self.anchor_image_path = ""
         self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_label.grid(row=1, column=2, columnspan=1, sticky='w')
+        self.anchor_image_label.grid(row=1, column=0, columnspan=1, sticky='w')
 
         # Create buttons to update the anchor image for each column
         self.update_anchor_buttons = []
@@ -319,15 +339,15 @@ class ImageViewer:
                         img = ImageTk.PhotoImage(resized_image_with_padding)
                         self.anchor_image_label.config(image=img)
                         self.anchor_image_label.image = img
-                        self.anchor_image = img
                         self.anchor_image_name_label.config(text=image_name)
-                        print(f"Loading image: {folder_name}, {image_name}")
+                        #print(f"Loading image: {folder_name}, {image_name}")
                     except Exception as e:
                         print(f"Error loading anchor image: {e}")
                 else:
                     print("Anchor image not found.")
             else:
                 print("Anchor info missing for the current_id.")
+        self.update_selectedview()
 
     def update_anchor_from_column(self, column_index):
         folder_path = self.folder_paths[column_index]
@@ -369,7 +389,6 @@ class ImageViewer:
                     img = ImageTk.PhotoImage(resized_image_with_padding)
                     self.anchor_image_label.config(image=img)
                     self.anchor_image_label.image = img
-                    self.anchor_image = img
                     self.anchor_image_name_label.config(text=image_name)
                     print(f"Loading image: {folder_path}, {image_name}")
                 except Exception as e:
@@ -381,7 +400,6 @@ class ImageViewer:
         self.anchor_image_label.destroy()
         self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
         self.anchor_image_label.grid(row=1, column=0, columnspan=3, sticky='w')
-        self.anchor_image = None
         self.anchor_image_path = ""
         self.anchor_image_name_label.config(text="")
 
@@ -430,7 +448,6 @@ class ImageViewer:
                 output_date_string += date_string[i:i+2] + ":"
             output_date_string = output_date_string[:-1]
             self.date_labels[index].config(text=output_date_string)
-            print(f"Cutoff from {filename} to {output_date_string}")
         except:
             print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
 
@@ -498,9 +515,11 @@ class ImageViewer:
 
             in_set = 0
             if image_name in image_info['image_name']:
-                image_index = image_info['image_name'].index(image_name)
-                if folder_name == image_info['image_folder'][image_index]:
-                    in_set = 1
+                image_indexes = [index for index, value in enumerate(image_info['image_name']) if value == image_name]
+                for image_index in image_indexes:
+                    if folder_name == image_info['image_folder'][image_index]:
+                        in_set = 1
+                        break
 
             if in_set:
                 image_info['image_name'].pop(image_index)
@@ -536,13 +555,59 @@ class ImageViewer:
                     image_info = self.image_info[str(self.current_id)]
                     click_status = False
                     if image_name in image_info['image_name']:
-                        image_index = image_info['image_name'].index(image_name)
-                        if folder_name == image_info['image_folder'][image_index]:
-                            click_status = True
+                        image_indexes = [index for index, value in enumerate(image_info['image_name']) if value == image_name]
+                        for image_index in image_indexes:
+                            if folder_name == image_info['image_folder'][image_index]:
+                                click_status = True
+                                break
 
                     # Update the background color of the image frame to visualize the click status
                     background_color = "green" if click_status else "red"
                     self.image_frames[i].config(bg=background_color)
+        
+        self.update_selectedview()
+
+    def update_selectedview(self):
+        for image_label in self.selectedviewimages_list:
+            image_label.destroy()
+        image_info = self.image_info[str(self.current_id)]
+        for i, [image_name, image_path] in enumerate(zip(image_info['image_name'], image_info['image_folder'])):
+            image_path = f"{image_path}/{image_name}"
+            self.load_and_display_image_selectedview(image_path, i)
+
+    def load_and_display_image_selectedview(self, image_path, i):
+        row = i // SELECTEDVIEW_COLUMNS
+        column = i % SELECTEDVIEW_COLUMNS
+        image = Image.open(image_path)
+        original_width, original_height = image.size
+        aspect_ratio = original_width / original_height
+        
+        new_width = DESIRED_SELECTVIEW_WIDTH
+        new_height = int(DESIRED_SELECTVIEW_WIDTH / aspect_ratio)
+
+        # Check if the new height exceeds the desired height
+        if new_height > new_height:
+            new_height = DESIRED_SELECTVIEW_HEIGHT
+            new_width = int(DESIRED_SELECTVIEW_HEIGHT * aspect_ratio)
+
+        # Calculate the padding on the top and bottom
+        padding_top = (DESIRED_SELECTVIEW_HEIGHT - new_height) // 2
+        padding_bottom = DESIRED_SELECTVIEW_HEIGHT - new_height - padding_top
+
+        # Calculate the padding on the left and right
+        padding_left = (DESIRED_SELECTVIEW_WIDTH - new_width) // 2
+        padding_right = DESIRED_SELECTVIEW_WIDTH - new_width - padding_left
+
+        # Resize and add padding to the image
+        resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
+                                                    border=(padding_left, padding_top, padding_right, padding_bottom), 
+                                                    fill="black")
+        photo = ImageTk.PhotoImage(resized_image_with_padding)
+        label = tk.Label(self.selectedview_frame, image=photo)
+        print(f"sss: {i}, {row}, {column}")
+        label.image = photo
+        label.grid(row=row, column=column, columnspan=1, sticky='w')
+        self.selectedviewimages_list.append(label)
 
     def load_image_info(self):
         try:
