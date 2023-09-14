@@ -531,6 +531,7 @@ class ImageViewer:
 
             # Update image click visualization
             self.update_image_click_visualization()
+        self.update_selectedview()
 
     def show_next_image(self, index):
         if hasattr(self, 'image_files_list'):
@@ -565,8 +566,6 @@ class ImageViewer:
                     background_color = "green" if click_status else "red"
                     self.image_frames[i].config(bg=background_color)
         
-        self.update_selectedview()
-
     def update_selectedview(self):
         for image_label in self.selectedviewimages_list:
             image_label.destroy()
