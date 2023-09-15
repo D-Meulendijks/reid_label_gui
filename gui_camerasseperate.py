@@ -4,7 +4,6 @@ from PIL import Image, ImageTk, ImageOps
 import os
 import json
 from tkinter import Toplevel
-
 MAX_FILENAME_LENGTH = 8
 DESIRED_IMAGE_HEIGHT = 200
 DESIRED_IMAGE_WIDTH = 200
@@ -40,6 +39,7 @@ class ImageViewer:
         self.current_id = 0
         self.current_camera = 0 # [0-4]
         self.date_labels = []  # List to store date labels
+        self.anchor_date = "0"
 
         self.clickable_rows = 5
         self.clickable_columns = 5
@@ -60,7 +60,7 @@ class ImageViewer:
 
 
         # @@@ Settings
-        self.create_settings_window()
+        #self.create_settings_window()
         # Update image clicks and borders to visualize
         self.reload_all_images()
         self.refresh_images()
@@ -224,7 +224,7 @@ class ImageViewer:
 
         # Add an "Anchor" label
         anchor_label = tk.Label(self.anchor_frame, text="Anchor")
-        anchor_label.grid(row=0, column=0, padx=10, pady=10)
+        anchor_label.grid(row=1, column=0, padx=10, pady=10)
 
         # Add two buttons for the anchor image
         previous_button = tk.Button(self.anchor_frame, text="Previous Anchor", command=self.previous_anchor)
@@ -235,7 +235,10 @@ class ImageViewer:
 
         # Add a label for the anchor image name
         self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_name_label.grid(row=1, column=1, columnspan=1)
+        self.anchor_image_name_label.grid(row=0, column=0, columnspan=1)
+        # Add a label for the anchor image name
+        self.anchor_image_date_label = tk.Label(self.anchor_frame, text="", padx=10)
+        self.anchor_image_date_label.grid(row=1, column=1, columnspan=1)
 
         # Initialize anchor image variables
         
@@ -287,9 +290,6 @@ class ImageViewer:
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()
-        if self.anchor_info.get(str(self.current_id)) is None:
-            # No new anchor found, remove the anchor image
-            self.clear_anchor_image()  
 
     def next_anchor(self):
         self.current_id += 1
@@ -299,12 +299,7 @@ class ImageViewer:
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_id)
         self.load_anchor_image()  # Load anchor image for the new current_id
-
-        # Check if there is an anchor image for the new current_id
-        if self.anchor_info.get(str(self.current_id)) is None:
-            print(f"No anchor found")
-            # No new anchor found, remove the anchor image
-            self.clear_anchor_image()
+    
             
     def next_all(self):
         self.current_image_indices[self.current_camera] += self.clickable_rows*self.clickable_columns
@@ -312,10 +307,13 @@ class ImageViewer:
         self.update_image_click_visualization()
 
     def open_settings(self):
-        if not self.settings_window.winfo_exists():
+        try:
+            if not self.settings_window.winfo_exists():
+                self.create_settings_window()
+            else:
+                print(f"Settings window already open")
+        except:
             self.create_settings_window()
-        else:
-            print(f"Settings window already open")
 
     def open_anchor(self):
         if not self.anchor_window.winfo_exists():
@@ -345,6 +343,7 @@ class ImageViewer:
     def load_anchor_image(self):
         # Load anchor image if it exists for the current_id
         anchor_info = self.anchor_info.get(str(self.current_id))
+        anchorset = 0
         if anchor_info:
             folder_name = anchor_info.get("folder_name")
             image_name = anchor_info.get("image_name")
@@ -358,7 +357,10 @@ class ImageViewer:
                         self.anchor_image_label.config(image=img)
                         self.anchor_image_label.image = img
                         self.anchor_image_name_label.config(text=image_name)
-                        self.anchor_date = self.extract_date_from_filename(image_name)
+                        anchor_date = self.extract_date_from_filename(image_name)
+                        self.anchor_image_date_label.config(text=anchor_date)
+                        self.anchor_date = anchor_date
+                        anchorset = 1
                         #print(f"Loading image: {folder_name}, {image_name}")
                     except Exception as e:
                         print(f"Error loading anchor image: {e}")
@@ -366,6 +368,16 @@ class ImageViewer:
                     print("Anchor image not found.")
             else:
                 print("Anchor info missing for the current_id.")
+            
+        if not anchorset:
+            white_image = Image.new('RGB', (DESIRED_IMAGE_WIDTH, DESIRED_IMAGE_HEIGHT), 'white')
+            white_image_tk = ImageTk.PhotoImage(white_image)
+
+            self.anchor_image_label.config(image=white_image_tk)
+            self.anchor_image_label.image = white_image_tk
+            self.anchor_image_name_label.config(text="Not set")
+            anchor_date = self.anchor_date # last known anchor date
+            self.anchor_image_date_label.config(text=anchor_date)
         self.update_selectedview()
 
     def resize_image(self, image, desired_width, desired_height):
@@ -412,12 +424,6 @@ class ImageViewer:
         else:
                 print(f"Anchor image not found for column {column_index + 1}.")
 
-    def clear_anchor_image(self):
-        self.anchor_image_label.destroy()
-        self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_label.grid(row=1, column=0, columnspan=3, sticky='w')
-        self.anchor_image_path = ""
-        self.anchor_image_name_label.config(text="")
 
     def browse_folder(self, index):
         folder_path = filedialog.askdirectory()
