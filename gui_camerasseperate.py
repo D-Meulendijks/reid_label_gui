@@ -4,18 +4,19 @@ from PIL import Image, ImageTk, ImageOps
 import os
 import json
 from tkinter import Toplevel
+
 MAX_FILENAME_LENGTH = 8
-DESIRED_IMAGE_HEIGHT = 200
-DESIRED_IMAGE_WIDTH = 200
+DESIRED_IMAGE_HEIGHT = 250
+DESIRED_IMAGE_WIDTH = 100
 
-DESIRED_ANCHOR_HEIGHT = 200
-DESIRED_ANCHOR_WIDTH = 200
+DESIRED_ANCHOR_HEIGHT = 350
+DESIRED_ANCHOR_WIDTH = 150
 
-DESIRED_SELECTVIEW_HEIGHT = 100
-DESIRED_SELECTVIEW_WIDTH = 100
+DESIRED_SELECTVIEW_HEIGHT = 60
+DESIRED_SELECTVIEW_WIDTH = 40
 NUMBER_OF_SKIPS = 5
 
-SELECTEDVIEW_ROWS = 10
+SELECTEDVIEW_ROWS = 7
 SELECTEDVIEW_COLUMNS = 10
 
 class ImageViewer:
@@ -36,13 +37,13 @@ class ImageViewer:
         self.image_files_list = ['']*5  # List to store image files for each column
         self.image_files_dates = ['']*5  # List to store image files for each column
         self.current_image_indices = [0, 0, 0, 0, 0]  # Separate current image indices for each column
-        self.current_id = 0
+        self.current_anchor_id = 0
         self.current_camera = 0 # [0-4]
         self.date_labels = []  # List to store date labels
         self.anchor_date = "0"
 
-        self.clickable_rows = 5
-        self.clickable_columns = 5
+        self.clickable_rows = SELECTEDVIEW_ROWS
+        self.clickable_columns = SELECTEDVIEW_COLUMNS
         # Set initial values for date_cutoff_start and date_cutoff_end
         self.date_cutoff_start = 10
         self.date_cutoff_end = 4
@@ -72,7 +73,7 @@ class ImageViewer:
         self.update_anchor_buttons = []
         for i in range(self.clickable_rows):
             for j in range(self.clickable_columns):
-                n = j+i*self.clickable_rows
+                n = j+i*self.clickable_columns
 
                 image_frame = tk.Frame(self.root)
                 image_frame.grid(row=1 + i*3, column=j, padx=10, pady=10)
@@ -96,11 +97,11 @@ class ImageViewer:
         # @@@ Top frame
         
         self.top_frame = tk.Frame(self.root)
-        self.top_frame.grid(row=0, column=0, rowspan=9, padx=10, pady=10)
+        self.top_frame.grid(row=0, column=0, columnspan=self.clickable_columns, padx=10, pady=10)
 
         # @@@ right frame
         self.additional_frame = tk.Frame(self.root)
-        self.additional_frame.grid(row=1, column=self.clickable_rows, rowspan=self.clickable_columns, padx=10, pady=10)
+        self.additional_frame.grid(row=1, column=self.clickable_columns, rowspan=self.clickable_columns, padx=10, pady=10)
 
         # Create buttons in the new column
         next_all_button = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
@@ -168,9 +169,11 @@ class ImageViewer:
     def create_selectedview_window(self):
         self.selectedview_window = Toplevel(self.root)  # Create a new top-level window
         self.selectedview_window.title("Selected View Window")  # Set the title of the new window
+        self.selectedview_title_label = tk.Label(self.selectedview_window, text=f"Currently selected")
+        self.selectedview_title_label.grid(row=0, column=1,columnspan=10)
 
-        self.selectedview_frame = tk.Frame(self.selectedview_window)
-        self.selectedview_frame.grid(row=SELECTEDVIEW_ROWS, column=SELECTEDVIEW_COLUMNS, columnspan=1)
+        self.selectedview_frame = tk.Frame(self.selectedview_window, width=100)
+        self.selectedview_frame.grid(row=1+SELECTEDVIEW_ROWS, column=SELECTEDVIEW_COLUMNS, columnspan=1)
 
     def create_settings_window(self):
         self.settings_window = Toplevel(self.root)  # Create a new top-level window
@@ -222,10 +225,6 @@ class ImageViewer:
         self.anchor_frame = tk.Frame(self.anchor_window)
         self.anchor_frame.grid(row=2, column=1, columnspan=3)
 
-        # Add an "Anchor" label
-        anchor_label = tk.Label(self.anchor_frame, text="Anchor")
-        anchor_label.grid(row=1, column=0, padx=10, pady=10)
-
         # Add two buttons for the anchor image
         previous_button = tk.Button(self.anchor_frame, text="Previous Anchor", command=self.previous_anchor)
         previous_button.grid(row=0, column=1, padx=10, pady=10)
@@ -234,10 +233,11 @@ class ImageViewer:
         next_button.grid(row=0, column=2, padx=10, pady=10)
 
         # Add a label for the anchor image name
-        self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", padx=10)
+        self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", width=30, padx=10)
         self.anchor_image_name_label.grid(row=0, column=0, columnspan=1)
         # Add a label for the anchor image name
-        self.anchor_image_date_label = tk.Label(self.anchor_frame, text="", padx=10)
+        larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
+        self.anchor_image_date_label = tk.Label(self.anchor_frame, text="", padx=10, font=larger_font)
         self.anchor_image_date_label.grid(row=1, column=1, columnspan=1)
 
         # Initialize anchor image variables
@@ -252,7 +252,7 @@ class ImageViewer:
         self.number_label.grid(row=1, column=2, padx=10, pady=10)
         larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.number_label.config(font=larger_font)
-        self.update_number_label_with_value(self.current_id)
+        self.update_number_label_with_value(self.current_anchor_id)
         self.load_anchor_image()
 
     def N_show_next_image(self, index):
@@ -282,22 +282,22 @@ class ImageViewer:
             self.date_cutoff_end_entry.insert(0, str(self.date_cutoff_end))
 
     def previous_anchor(self):
-        if self.current_id < 1:
+        if self.current_anchor_id < 1:
             return
-        self.current_id -= 1
-        if str(self.current_id) not in self.image_info:
-            self.image_info[str(self.current_id)] = {'image_name':[], 'image_folder':[]}
+        self.current_anchor_id -= 1
+        if str(self.current_anchor_id) not in self.image_info:
+            self.image_info[str(self.current_anchor_id)] = {'image_name':[], 'image_folder':[]}
         self.update_image_click_visualization()
-        self.update_number_label_with_value(self.current_id)
+        self.update_number_label_with_value(self.current_anchor_id)
         self.load_anchor_image()
 
     def next_anchor(self):
-        self.current_id += 1
-        if str(self.current_id) not in self.image_info:
-            self.image_info[str(self.current_id)] = {'image_name':[], 'image_folder':[]}
+        self.current_anchor_id += 1
+        if str(self.current_anchor_id) not in self.image_info:
+            self.image_info[str(self.current_anchor_id)] = {'image_name':[], 'image_folder':[]}
 
         self.update_image_click_visualization()
-        self.update_number_label_with_value(self.current_id)
+        self.update_number_label_with_value(self.current_anchor_id)
         self.load_anchor_image()  # Load anchor image for the new current_id
     
             
@@ -342,7 +342,7 @@ class ImageViewer:
 
     def load_anchor_image(self):
         # Load anchor image if it exists for the current_id
-        anchor_info = self.anchor_info.get(str(self.current_id))
+        anchor_info = self.anchor_info.get(str(self.current_anchor_id))
         anchorset = 0
         if anchor_info:
             folder_name = anchor_info.get("folder_name")
@@ -358,7 +358,11 @@ class ImageViewer:
                         self.anchor_image_label.image = img
                         self.anchor_image_name_label.config(text=image_name)
                         anchor_date = self.extract_date_from_filename(image_name)
-                        self.anchor_image_date_label.config(text=anchor_date)
+                        output_anchor_date_string = ""
+                        for i in range(0, len(anchor_date), 2):
+                            output_anchor_date_string += anchor_date[i:i+2] + ":"
+                        output_anchor_date_string = output_anchor_date_string[:-1]
+                        self.anchor_image_date_label.config(text=output_anchor_date_string)
                         self.anchor_date = anchor_date
                         anchorset = 1
                         #print(f"Loading image: {folder_name}, {image_name}")
@@ -377,7 +381,12 @@ class ImageViewer:
             self.anchor_image_label.image = white_image_tk
             self.anchor_image_name_label.config(text="Not set")
             anchor_date = self.anchor_date # last known anchor date
-            self.anchor_image_date_label.config(text=anchor_date)
+            
+            output_anchor_date_string = ""
+            for i in range(0, len(anchor_date), 2):
+                output_anchor_date_string += anchor_date[i:i+2] + ":"
+            output_anchor_date_string = output_anchor_date_string[:-1]
+            self.anchor_image_date_label.config(text=output_anchor_date_string)
         self.update_selectedview()
 
     def resize_image(self, image, desired_width, desired_height):
@@ -414,7 +423,7 @@ class ImageViewer:
             try:
                 # Update anchor info with the anchor image name and folder name for the current ID
                 anchor_info = self.anchor_info
-                anchor_info[str(self.current_id)] = {"image_name": image_name, "folder_name": folder_path}
+                anchor_info[str(self.current_anchor_id)] = {"image_name": image_name, "folder_name": folder_path}
                 self.save_anchor_info()
                 self.load_anchor_image()
 
@@ -446,7 +455,7 @@ class ImageViewer:
         for i in range(self.clickable_rows):
             for j in range(self.clickable_columns):
                 if os.path.isdir(self.folder_paths[self.current_camera]):
-                    n = j+i*self.clickable_rows
+                    n = j+i*self.clickable_columns
                     self.show_image(self.current_camera, self.folder_paths[self.current_camera], n)
 
     def reload_all_images(self):
@@ -486,8 +495,6 @@ class ImageViewer:
                 sorted_pairs = sorted(pairs, key=lambda x: x[0])
                 self.image_files_list[index] = [pair[1] for pair in sorted_pairs]
                 self.image_files_dates[index] = [pair[0] for pair in sorted_pairs]
-                print(pairs)
-                print(sorted_pairs)
             else:
                 print("No .jpg files found in the selected folder.")
         except Exception as e:
@@ -548,7 +555,7 @@ class ImageViewer:
             # Toggle the click status for the current image in its corresponding folder
             image_name = self.image_files_list[self.current_camera][self.current_image_indices[self.current_camera] + index]
             folder_name = self.folder_paths[self.current_camera]
-            image_info = self.image_info[str(self.current_id)]
+            image_info = self.image_info[str(self.current_anchor_id)]
 
             in_set = 0
             if image_name in image_info['image_name']:
@@ -593,7 +600,7 @@ class ImageViewer:
 
                 # Check if the stored value matches the current_id
                 folder_name = self.folder_paths[self.current_camera]
-                image_info = self.image_info[str(self.current_id)]
+                image_info = self.image_info[str(self.current_anchor_id)]
                 click_status = False
                 if image_name in image_info['image_name']:
                     image_indexes = [index for index, value in enumerate(image_info['image_name']) if value == image_name]
@@ -609,10 +616,17 @@ class ImageViewer:
     def update_selectedview(self):
         for image_label in self.selectedviewimages_list:
             image_label.destroy()
-        image_info = self.image_info[str(self.current_id)]
+        image_info = self.image_info[str(self.current_anchor_id)]
         for i, [image_name, image_path] in enumerate(zip(image_info['image_name'], image_info['image_folder'])):
             image_path = f"{image_path}/{image_name}"
             self.load_and_display_image_selectedview(image_path, i)
+
+    def remove_from_selected(self, n):
+        image_info = self.image_info[str(self.current_anchor_id)]
+        image_info['image_name'].pop(n)
+        image_info['image_folder'].pop(n)
+        self.update_selectedview()
+        self.update_image_click_visualization()
 
     def load_and_display_image_selectedview(self, image_path, i):
         try:
@@ -644,9 +658,11 @@ class ImageViewer:
                                                         fill="black")
             photo = ImageTk.PhotoImage(resized_image_with_padding)
             label = tk.Label(self.selectedview_frame, image=photo)
+            label.bind("<Button-1>", lambda event, n=i: self.remove_from_selected(n))
             
             label.image = photo
-            label.grid(row=row, column=column, columnspan=1, sticky='w')
+            label.grid(row=row+1, column=column, columnspan=1, sticky='w')
+            print(f"col: {column}")
             self.selectedviewimages_list.append(label)
         except Exception as e:
             print(f"Cannot load image 3: {e}")
@@ -658,7 +674,7 @@ class ImageViewer:
                 self.image_info = json.load(json_file)
         except FileNotFoundError:
             # Initialize image info with default values if the file doesn't exist
-            self.image_info = {str(self.current_id):{'image_name':[], 'image_folder':[]}}
+            self.image_info = {str(self.current_anchor_id):{'image_name':[], 'image_folder':[]}}
 
     def save_image_info(self):
         # Save image info (click status and folder name for each column) to a JSON file
@@ -685,20 +701,20 @@ class ImageViewer:
             with open("settings.json", "r") as json_file:
                 settings_data = json.load(json_file)
                 self.folder_paths = settings_data.get("folder_paths", [""] * 5)
-                self.current_id = settings_data.get("current_id", 0)
+                self.current_anchor_id = settings_data.get("current_id", 0)
                 self.current_image_indices = settings_data.get("current_image_indices", [0] * 5)
-                print(f"Loaded settings: {self.folder_paths}, {self.current_id}, {self.current_image_indices}")
+                print(f"Loaded settings: {self.folder_paths}, {self.current_anchor_id}, {self.current_image_indices}")
         except FileNotFoundError:
             # Initialize folder paths with empty strings, current_id with 0, and current_image_indices with 0 for all columns
             self.folder_paths = [""] * 5
-            self.current_id = 0
+            self.current_anchor_id = 0
             self.current_image_indices = [0] * 5
 
     def save_settings(self):
         # Save folder paths, current_id, and current_image_indices to settings.json
         settings_data = {
             "folder_paths": self.folder_paths,
-            "current_id": self.current_id,
+            "current_id": self.current_anchor_id,
             "current_image_indices": self.current_image_indices
         }
         with open("settings.json", "w") as json_file:
