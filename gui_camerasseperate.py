@@ -35,6 +35,7 @@ class ImageViewer:
         self.image_info = {}  # dict to store image info (click status and folder name for each column)
         self.anchor_infos = []  # List to store anchor info (anchor image name and folder name for each current_id)
         self.image_files_list = ['']*5  # List to store image files for each column
+        self.image_files_dates = ['']*5  # List to store image files for each column
         self.current_image_indices = [0, 0, 0, 0, 0]  # Separate current image indices for each column
         self.current_id = 0
         self.current_camera = 0 # [0-4]
@@ -92,19 +93,24 @@ class ImageViewer:
                 date_label.grid(row=3 + i*3, column=j)
                 self.date_labels.append(date_label)
 
-        # @@@ Buttons
+        # @@@ Top frame
+        
+        self.top_frame = tk.Frame(self.root)
+        self.top_frame.grid(row=0, column=0, rowspan=9, padx=10, pady=10)
+
+        # @@@ right frame
         self.additional_frame = tk.Frame(self.root)
-        self.additional_frame.grid(row=0, column=5, rowspan=9, padx=10, pady=10)
+        self.additional_frame.grid(row=1, column=self.clickable_rows, rowspan=self.clickable_columns, padx=10, pady=10)
 
         # Create buttons in the new column
-        button1 = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
-        button1.grid(row=0, column=0, padx=10, pady=10)
+        next_all_button = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
+        next_all_button.grid(row=0, column=0, padx=10, pady=10)
 
-        button2 = tk.Button(self.additional_frame, text="Button 2", command=self.print_message2)
-        button2.grid(row=1, column=0, padx=10, pady=10)
+        move_to_closest_date_button = tk.Button(self.additional_frame, text="Move close to anchor", command=self.move_to_closest_date)
+        move_to_closest_date_button.grid(row=1, column=0, padx=10, pady=10)
 
-        button3 = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
-        button3.grid(row=2, column=0, padx=10, pady=10)
+        previous_all_button = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
+        previous_all_button.grid(row=2, column=0, padx=10, pady=10)
         
         whitespace = tk.Label(self.additional_frame)
         whitespace.grid(row=3, column=0, padx=10, pady=10)
@@ -128,32 +134,35 @@ class ImageViewer:
         cam5_button = tk.Button(self.additional_frame, text="Camera 5", command=self.switch_camera_5)
         cam5_button.grid(row=11, column=0, padx=10, pady=10)
 
-
-
-
         # Create a label with arbitrary text
-        self.arbitrary_label = tk.Label(self.root, text="Arbitrary Text")
+        larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
+        self.arbitrary_label = tk.Label(self.root, text=f"Camera {self.current_camera + 1}", font=larger_font)
         self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
 
 
     def switch_camera_1(self):
         self.current_camera = 0
+        self.arbitrary_label.config(text=f"Camera {self.current_camera + 1}")
         self.refresh_images()
 
     def switch_camera_2(self):
         self.current_camera = 1
+        self.arbitrary_label.config(text=f"Camera {self.current_camera + 1}")
         self.refresh_images()
 
     def switch_camera_3(self):
         self.current_camera = 2
+        self.arbitrary_label.config(text=f"Camera {self.current_camera + 1}")
         self.refresh_images()
 
     def switch_camera_4(self):
         self.current_camera = 3
+        self.arbitrary_label.config(text=f"Camera {self.current_camera + 1}")
         self.refresh_images()
 
     def switch_camera_5(self):
         self.current_camera = 4
+        self.arbitrary_label.config(text=f"Camera {self.current_camera + 1}")
         self.refresh_images()
 
     def create_selectedview_window(self):
@@ -298,7 +307,7 @@ class ImageViewer:
             self.clear_anchor_image()
             
     def next_all(self):
-        self.current_image_indices[self.current_camera] += 30
+        self.current_image_indices[self.current_camera] += self.clickable_rows*self.clickable_columns
         self.refresh_images()
         self.update_image_click_visualization()
 
@@ -314,8 +323,13 @@ class ImageViewer:
         else:
             print(f"Anchor window already open")
 
-    def print_message2(self):
-        pass
+    def move_to_closest_date(self):
+        closest = self.find_closest_index(self.image_files_dates[self.current_camera], self.anchor_date)
+        N = self.clickable_rows*self.clickable_columns
+        closest_rounded = closest - closest % N
+        self.current_image_indices[self.current_camera] = closest_rounded
+        self.refresh_images()
+        self.update_image_click_visualization()
 
     def previous_all(self):
         self.current_image_indices[self.current_camera] -= 30
@@ -344,6 +358,7 @@ class ImageViewer:
                         self.anchor_image_label.config(image=img)
                         self.anchor_image_label.image = img
                         self.anchor_image_name_label.config(text=image_name)
+                        self.anchor_date = self.extract_date_from_filename(image_name)
                         #print(f"Loading image: {folder_name}, {image_name}")
                     except Exception as e:
                         print(f"Error loading anchor image: {e}")
@@ -378,7 +393,8 @@ class ImageViewer:
                                                     border=(padding_left, padding_top, padding_right, padding_bottom), 
                                                     fill="black")   
 
-    def update_anchor_from_column(self, current_index):
+    def update_anchor_from_column(self, n):
+        current_index = self.current_image_indices[self.current_camera]+n
         folder_path = self.folder_paths[self.current_camera]
         image_name = self.image_files_list[self.current_camera][current_index]
         anchor_image_path = os.path.join(folder_path, image_name)
@@ -388,15 +404,8 @@ class ImageViewer:
                 anchor_info = self.anchor_info
                 anchor_info[str(self.current_id)] = {"image_name": image_name, "folder_name": folder_path}
                 self.save_anchor_info()
+                self.load_anchor_image()
 
-                image = Image.open(anchor_image_path)
-
-                # Resize and add padding to the image
-                resized_image_with_padding = self.resize_image(image, DESIRED_ANCHOR_WIDTH, DESIRED_ANCHOR_HEIGHT)
-                img = ImageTk.PhotoImage(resized_image_with_padding)
-                self.anchor_image_label.config(image=img)
-                self.anchor_image_label.image = img
-                self.anchor_image_name_label.config(text=image_name)
                 print(f"Loading image: {folder_path}, {image_name}")
             except Exception as e:
                 print(f"Error loading anchor image: {e}")
@@ -441,25 +450,51 @@ class ImageViewer:
             else:
                 print(f"Error, not a dir: {folder_path} - {self.folder_paths}")
 
+    def find_closest_index(self, numbers_string_list, target_string):
+        if not numbers_string_list:
+            return None  # Handle an empty list if neededcl
+        try:
+            numbers = [int(numbers_string) for numbers_string in numbers_string_list]
+            target = int(target_string)
+        except Exception as e:
+            print(f"Date invalid: {e}")
+            return 0
+
+        closest_index = 0  # Initialize with the first index
+        closest_difference = abs(numbers[0] - target)  # Initialize with the difference to the first element
+        
+        for i in range(1, len(numbers)):
+            difference = abs(numbers[i] - target)
+            if difference < closest_difference:
+                closest_index = i
+                closest_difference = difference
+
+        return closest_index
+
     def load_image(self, index, folder_path):
         try:
             image_files = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
-            image_files_dates = [name[-self.date_cutoff_start:-self.date_cutoff_end] for name in image_files]
+            image_files_dates = [self.extract_date_from_filename(filename) for filename in image_files]
             if image_files:
-                self.image_files_list[index] = image_files
+                pairs = list(zip(image_files_dates, image_files))
+                sorted_pairs = sorted(pairs, key=lambda x: x[0])
+                self.image_files_list[index] = [pair[1] for pair in sorted_pairs]
+                self.image_files_dates[index] = [pair[0] for pair in sorted_pairs]
+                print(pairs)
+                print(sorted_pairs)
             else:
                 print("No .jpg files found in the selected folder.")
         except Exception as e:
             print(f"Error loading image: {e}")
 
-    def extract_and_update_date(self, filename, index):
+    def extract_and_update_date(self, filename, n):
         try:
             output_date_string = ""
-            date_string = filename[-self.date_cutoff_start:-self.date_cutoff_end]
+            date_string = self.extract_date_from_filename(filename)
             for i in range(0, len(date_string), 2):
                 output_date_string += date_string[i:i+2] + ":"
             output_date_string = output_date_string[:-1]
-            self.date_labels[index].config(text=output_date_string)
+            self.date_labels[n].config(text=output_date_string)
         except:
             print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
 
@@ -474,13 +509,9 @@ class ImageViewer:
 
             img = ImageTk.PhotoImage(resized_image_with_padding)
             
-            if len(self.image_files_list[index][image_index]) > MAX_FILENAME_LENGTH:
-                # Truncate the file name to fit within the limit
-                truncated_filename = self.image_files_list[index][image_index][:MAX_FILENAME_LENGTH - 3] + "..."
-            else:
-                truncated_filename = self.image_files_list[index][image_index]
+            truncated_filename = self.truncate_filename(self.image_files_list[index][image_index])
             
-            self.extract_and_update_date(self.image_files_list[index][image_index], index)
+            self.extract_and_update_date(self.image_files_list[index][image_index], n)
 
             self.image_labels[n].config(image=img, text=self.image_files_list[index][image_index])
             self.image_labels[n].image = img
@@ -488,12 +519,23 @@ class ImageViewer:
             # Update image click visualization
             self.update_image_click_visualization()
         except Exception as e:
-            print(f"Error loading image 2: {e}")
+            #print(f"Error loading image 2: {e}")
             white_image = Image.new('RGB', (DESIRED_IMAGE_WIDTH, DESIRED_IMAGE_HEIGHT), 'white')
             white_image_tk = ImageTk.PhotoImage(white_image)
 
             self.image_labels[n].config(image=white_image_tk, text="-")
             self.image_labels[n].image = white_image_tk
+
+    def truncate_filename(self, filename):
+        if len(filename) > MAX_FILENAME_LENGTH:
+                # Truncate the file name to fit within the limit
+            truncated_filename = filename[:MAX_FILENAME_LENGTH - 3]
+        else:
+            truncated_filename = filename
+
+    def extract_date_from_filename(self, filename):
+        return filename[-self.date_cutoff_start:-self.date_cutoff_end]
+        
 
     def toggle_image_click(self, index):
         if hasattr(self, 'image_files_list') and hasattr(self, 'image_info'):
@@ -567,38 +609,41 @@ class ImageViewer:
             self.load_and_display_image_selectedview(image_path, i)
 
     def load_and_display_image_selectedview(self, image_path, i):
-        row = i // SELECTEDVIEW_COLUMNS
-        column = i % SELECTEDVIEW_COLUMNS
-        image = Image.open(image_path)
-        original_width, original_height = image.size
-        aspect_ratio = original_width / original_height
-        
-        new_width = DESIRED_SELECTVIEW_WIDTH
-        new_height = int(DESIRED_SELECTVIEW_WIDTH / aspect_ratio)
+        try:
+            row = i // SELECTEDVIEW_COLUMNS
+            column = i % SELECTEDVIEW_COLUMNS
+            image = Image.open(image_path)
+            original_width, original_height = image.size
+            aspect_ratio = original_width / original_height
+            
+            new_width = DESIRED_SELECTVIEW_WIDTH
+            new_height = int(DESIRED_SELECTVIEW_WIDTH / aspect_ratio)
 
-        # Check if the new height exceeds the desired height
-        if new_height > new_height:
-            new_height = DESIRED_SELECTVIEW_HEIGHT
-            new_width = int(DESIRED_SELECTVIEW_HEIGHT * aspect_ratio)
+            # Check if the new height exceeds the desired height
+            if new_height > new_height:
+                new_height = DESIRED_SELECTVIEW_HEIGHT
+                new_width = int(DESIRED_SELECTVIEW_HEIGHT * aspect_ratio)
 
-        # Calculate the padding on the top and bottom
-        padding_top = (DESIRED_SELECTVIEW_HEIGHT - new_height) // 2
-        padding_bottom = DESIRED_SELECTVIEW_HEIGHT - new_height - padding_top
+            # Calculate the padding on the top and bottom
+            padding_top = (DESIRED_SELECTVIEW_HEIGHT - new_height) // 2
+            padding_bottom = DESIRED_SELECTVIEW_HEIGHT - new_height - padding_top
 
-        # Calculate the padding on the left and right
-        padding_left = (DESIRED_SELECTVIEW_WIDTH - new_width) // 2
-        padding_right = DESIRED_SELECTVIEW_WIDTH - new_width - padding_left
+            # Calculate the padding on the left and right
+            padding_left = (DESIRED_SELECTVIEW_WIDTH - new_width) // 2
+            padding_right = DESIRED_SELECTVIEW_WIDTH - new_width - padding_left
 
-        # Resize and add padding to the image
-        resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
-                                                    border=(padding_left, padding_top, padding_right, padding_bottom), 
-                                                    fill="black")
-        photo = ImageTk.PhotoImage(resized_image_with_padding)
-        label = tk.Label(self.selectedview_frame, image=photo)
-        
-        label.image = photo
-        label.grid(row=row, column=column, columnspan=1, sticky='w')
-        self.selectedviewimages_list.append(label)
+            # Resize and add padding to the image
+            resized_image_with_padding = ImageOps.expand(image.resize((new_width, new_height)), 
+                                                        border=(padding_left, padding_top, padding_right, padding_bottom), 
+                                                        fill="black")
+            photo = ImageTk.PhotoImage(resized_image_with_padding)
+            label = tk.Label(self.selectedview_frame, image=photo)
+            
+            label.image = photo
+            label.grid(row=row, column=column, columnspan=1, sticky='w')
+            self.selectedviewimages_list.append(label)
+        except Exception as e:
+            print(f"Cannot load image 3: {e}")
 
     def load_image_info(self):
         try:
