@@ -4,38 +4,25 @@ from PIL import Image, ImageTk, ImageOps
 import os
 import json
 from tkinter import Toplevel
-from datetime import datetime, timedelta
-import numpy as np
 
 MAX_FILENAME_LENGTH = 8
-DESIRED_IMAGE_HEIGHT = 130
-DESIRED_IMAGE_WIDTH = 50
-CLICKABLE_ROWS = 3
-CLICKABLE_COLUMNS = 13
-
+DESIRED_IMAGE_HEIGHT = 250
+DESIRED_IMAGE_WIDTH = 100
 
 DESIRED_ANCHOR_HEIGHT = 350
 DESIRED_ANCHOR_WIDTH = 150
 
 DESIRED_SELECTVIEW_HEIGHT = 60
 DESIRED_SELECTVIEW_WIDTH = 40
+NUMBER_OF_SKIPS = 5
+
 SELECTEDVIEW_ROWS = 7
 SELECTEDVIEW_COLUMNS = 10
-NUMBER_OF_SKIPS = 2
-
 
 class ImageViewer:
     def __init__(self, root):
         self.root = root
         self.root.title("Image Viewer")
-
-        self.date_offsets = [timedelta(seconds=0, minutes=-20),
-                             timedelta(seconds=0, minutes=1),
-                             timedelta(seconds=0, minutes=1),
-                             timedelta(seconds=0, minutes=-10),
-                             timedelta(seconds=0)
-                             ]
-        self.cameranames = ["C1", "C2", "C3", "C4", "C5"]
 
         self.folder_path_entries = [""] * 5  # Initialize with 5 empty Entry widgets
         self.folder_paths = [""]* 5 # 5 empty strings
@@ -55,9 +42,8 @@ class ImageViewer:
         self.date_labels = []  # List to store date labels
         self.anchor_date = "0"
 
-
-        self.clickable_rows = CLICKABLE_ROWS
-        self.clickable_columns = CLICKABLE_COLUMNS
+        self.clickable_rows = SELECTEDVIEW_ROWS
+        self.clickable_columns = SELECTEDVIEW_COLUMNS
         # Set initial values for date_cutoff_start and date_cutoff_end
         self.date_cutoff_start = 10
         self.date_cutoff_end = 4
@@ -101,7 +87,7 @@ class ImageViewer:
                 image_name_label = tk.Label(image_frame, text="", padx=10)
                 image_name_label.pack()
 
-                update_anchor_button = tk.Button(self.root, text=f"Set Anchor", command=lambda n=n: self.update_anchor_from_column(n))
+                update_anchor_button = tk.Button(self.root, text=f"Update Anchor {n+1}", command=lambda n=n: self.update_anchor_from_column(n))
                 update_anchor_button.grid(row=2 + i*3, column=j)
                 self.update_anchor_buttons.append(update_anchor_button)
                 date_label = tk.Label(self.root, text="Arbitrary Date", padx=10, pady=10)
@@ -119,13 +105,13 @@ class ImageViewer:
 
         # Create buttons in the new column
         next_all_button = tk.Button(self.additional_frame, text="Next all", command=self.next_all)
-        next_all_button.grid(row=2, column=0, padx=10, pady=10)
+        next_all_button.grid(row=0, column=0, padx=10, pady=10)
 
         move_to_closest_date_button = tk.Button(self.additional_frame, text="Move close to anchor", command=self.move_to_closest_date)
         move_to_closest_date_button.grid(row=1, column=0, padx=10, pady=10)
 
         previous_all_button = tk.Button(self.additional_frame, text="Previous all", command=self.previous_all)
-        previous_all_button.grid(row=0, column=0, padx=10, pady=10)
+        previous_all_button.grid(row=2, column=0, padx=10, pady=10)
         
         whitespace = tk.Label(self.additional_frame)
         whitespace.grid(row=3, column=0, padx=10, pady=10)
@@ -150,7 +136,7 @@ class ImageViewer:
         cam5_button.grid(row=11, column=0, padx=10, pady=10)
 
         # Create a label with arbitrary text
-        larger_font = ('Helvetica', 10)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
+        larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.arbitrary_label = tk.Label(self.root, text=f"Camera {self.current_camera + 1}", font=larger_font)
         self.arbitrary_label.grid(row=0, column=2, padx=10, pady=10)
 
@@ -241,10 +227,10 @@ class ImageViewer:
 
         # Add two buttons for the anchor image
         previous_button = tk.Button(self.anchor_frame, text="Previous Anchor", command=self.previous_anchor)
-        previous_button.grid(row=1, column=0, padx=10, pady=10)
+        previous_button.grid(row=0, column=1, padx=10, pady=10)
 
         next_button = tk.Button(self.anchor_frame, text="Next Anchor", command=self.next_anchor)
-        next_button.grid(row=1, column=1, padx=10, pady=10)
+        next_button.grid(row=0, column=2, padx=10, pady=10)
 
         # Add a label for the anchor image name
         self.anchor_image_name_label = tk.Label(self.anchor_frame, text="", width=30, padx=10)
@@ -252,18 +238,18 @@ class ImageViewer:
         # Add a label for the anchor image name
         larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.anchor_image_date_label = tk.Label(self.anchor_frame, text="", padx=10, font=larger_font)
-        self.anchor_image_date_label.grid(row=2, column=1, columnspan=1)
+        self.anchor_image_date_label.grid(row=1, column=1, columnspan=1)
 
         # Initialize anchor image variables
         
         self.anchor_image_path = ""
         self.anchor_image_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.anchor_image_label.grid(row=2, column=0, columnspan=1, sticky='w')
+        self.anchor_image_label.grid(row=1, column=0, columnspan=1, sticky='w')
 
         # Create buttons to update the anchor image for each column
 
         self.number_label = tk.Label(self.anchor_frame, text="", padx=10)
-        self.number_label.grid(row=3, column=1, padx=10, pady=10)
+        self.number_label.grid(row=1, column=2, padx=10, pady=10)
         larger_font = ('Helvetica', 20)  # Change 'Helvetica' to your desired font family and 20 to the desired font size
         self.number_label.config(font=larger_font)
         self.update_number_label_with_value(self.current_anchor_id)
@@ -313,9 +299,10 @@ class ImageViewer:
         self.update_image_click_visualization()
         self.update_number_label_with_value(self.current_anchor_id)
         self.load_anchor_image()  # Load anchor image for the new current_id
-
+    
+            
     def next_all(self):
-        self.current_image_indices[self.current_camera] += (NUMBER_OF_SKIPS*self.clickable_columns)
+        self.current_image_indices[self.current_camera] += (self.clickable_rows*self.clickable_columns)//2
         self.refresh_images()
         self.update_image_click_visualization()
 
@@ -343,7 +330,7 @@ class ImageViewer:
         self.update_image_click_visualization()
 
     def previous_all(self):
-        self.current_image_indices[self.current_camera] -= NUMBER_OF_SKIPS*self.clickable_columns
+        self.current_image_indices[self.current_camera] -= (self.clickable_rows*self.clickable_columns)//2
         if self.current_image_indices[self.current_camera] < 0:
             self.current_image_indices[self.current_camera] = 0
         self.refresh_images()
@@ -352,11 +339,6 @@ class ImageViewer:
     def update_number_label_with_value(self, value):
         # Update the number/variable label with the given value
         self.number_label.config(text=str(value))
-
-    def offset_date(self, date, filename):
-        for i, cam in enumerate(self.cameranames):
-            if cam in filename:
-                return date + self.date_offsets[i]
 
     def load_anchor_image(self):
         # Load anchor image if it exists for the current_id
@@ -375,14 +357,13 @@ class ImageViewer:
                         self.anchor_image_label.config(image=img)
                         self.anchor_image_label.image = img
                         self.anchor_image_name_label.config(text=image_name)
-                        anchor_datetime = self.offset_date(self.extract_date_from_filename(image_name), image_name)
-                        anchor_date = self.datetime_to_string(anchor_datetime)
+                        anchor_date = self.extract_date_from_filename(image_name)
                         output_anchor_date_string = ""
                         for i in range(0, len(anchor_date), 2):
                             output_anchor_date_string += anchor_date[i:i+2] + ":"
                         output_anchor_date_string = output_anchor_date_string[:-1]
                         self.anchor_image_date_label.config(text=output_anchor_date_string)
-                        self.anchor_date = anchor_datetime
+                        self.anchor_date = anchor_date
                         anchorset = 1
                         #print(f"Loading image: {folder_name}, {image_name}")
                     except Exception as e:
@@ -452,6 +433,7 @@ class ImageViewer:
         else:
                 print(f"Anchor image not found for column {column_index + 1}.")
 
+
     def browse_folder(self, index):
         folder_path = filedialog.askdirectory()
         if folder_path:
@@ -483,29 +465,36 @@ class ImageViewer:
             else:
                 print(f"Error, not a dir: {folder_path} - {self.folder_paths}")
 
-    def find_closest_index(self, items, pivot):
-        time_diff = np.abs([date - pivot for date in items])
-        return time_diff.argmin(0)
+    def find_closest_index(self, numbers_string_list, target_string):
+        if not numbers_string_list:
+            return None  # Handle an empty list if neededcl
+        try:
+            numbers = [int(numbers_string) for numbers_string in numbers_string_list]
+            target = int(target_string)
+        except Exception as e:
+            print(f"Date invalid: {e}")
+            return 0
+
+        closest_index = 0  # Initialize with the first index
+        closest_difference = abs(numbers[0] - target)  # Initialize with the difference to the first element
+        
+        for i in range(1, len(numbers)):
+            difference = abs(numbers[i] - target)
+            if difference < closest_difference:
+                closest_index = i
+                closest_difference = difference
+
+        return closest_index
 
     def load_image(self, index, folder_path):
         try:
             image_files = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
-            image_files_dates = [self.offset_date(self.extract_date_from_filename(filename), filename) for filename in image_files]
-            cyclist_ids = [filename.split("_")[0] for filename in image_files]
-
-            first_indexes = {}
-
-            for first_index, letter in enumerate(cyclist_ids):
-                if letter not in first_indexes:
-                    first_indexes[letter] = first_index
-
-            cyclist_ids_dates = [image_files_dates[first_indexes[cyclist_id]] for cyclist_id in cyclist_ids]
-
+            image_files_dates = [self.extract_date_from_filename(filename) for filename in image_files]
             if image_files:
-                pairs = list(zip(cyclist_ids_dates, image_files_dates, image_files))
-                sorted_pairs = sorted(pairs, key=lambda x: (x[0], x[1]))
-                self.image_files_list[index] = [pair[2] for pair in sorted_pairs]
-                self.image_files_dates[index] = [pair[1] for pair in sorted_pairs]
+                pairs = list(zip(image_files_dates, image_files))
+                sorted_pairs = sorted(pairs, key=lambda x: x[0])
+                self.image_files_list[index] = [pair[1] for pair in sorted_pairs]
+                self.image_files_dates[index] = [pair[0] for pair in sorted_pairs]
             else:
                 print("No .jpg files found in the selected folder.")
         except Exception as e:
@@ -514,15 +503,13 @@ class ImageViewer:
     def extract_and_update_date(self, filename, n):
         try:
             output_date_string = ""
-            date_datetime = self.offset_date(self.extract_date_from_filename(filename), filename)
-            date_string = self.datetime_to_string(date_datetime)
+            date_string = self.extract_date_from_filename(filename)
             for i in range(0, len(date_string), 2):
                 output_date_string += date_string[i:i+2] + ":"
             output_date_string = output_date_string[:-1]
             self.date_labels[n].config(text=output_date_string)
-        except Exception as e:
+        except:
             print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
-            print(f"error: {e}")
 
     def show_image(self, index, folder_path, n):
         try:
@@ -560,12 +547,8 @@ class ImageViewer:
             truncated_filename = filename
 
     def extract_date_from_filename(self, filename):
-        date_string = filename[-self.date_cutoff_start:-self.date_cutoff_end]
-        filedate = datetime.strptime(date_string, "%H%M%S")
-        return filedate
-    
-    def datetime_to_string(self, date):
-        return date.strftime("%H%M%S")
+        return filename[-self.date_cutoff_start:-self.date_cutoff_end]
+        
 
     def toggle_image_click(self, index):
         if hasattr(self, 'image_files_list') and hasattr(self, 'image_info'):
@@ -631,14 +614,12 @@ class ImageViewer:
                 self.image_frames[i].config(bg=background_color)
         
     def update_selectedview(self):
-        self.camerasselected = ""
         for image_label in self.selectedviewimages_list:
             image_label.destroy()
         image_info = self.image_info[str(self.current_anchor_id)]
         for i, [image_name, image_path] in enumerate(zip(image_info['image_name'], image_info['image_folder'])):
             image_path = f"{image_path}/{image_name}"
             self.load_and_display_image_selectedview(image_path, i)
-        self.selectedview_title_label.config(text=f"Currently selected - {self.camerasselected}")
 
     def remove_from_selected(self, n):
         image_info = self.image_info[str(self.current_anchor_id)]
@@ -676,20 +657,13 @@ class ImageViewer:
                                                         border=(padding_left, padding_top, padding_right, padding_bottom), 
                                                         fill="black")
             photo = ImageTk.PhotoImage(resized_image_with_padding)
-            cameraselected = image_path.split('_')[-4]
-            textlabel = tk.Label(self.selectedview_frame, text=f"{cameraselected}", padx=10)
-            textlabel.grid(row=row*2+1, column=column, columnspan=1, sticky='w')
-
-            if cameraselected not in self.camerasselected:
-                self.camerasselected = self.camerasselected + cameraselected
-
             label = tk.Label(self.selectedview_frame, image=photo)
             label.bind("<Button-1>", lambda event, n=i: self.remove_from_selected(n))
             
             label.image = photo
-            label.grid(row=row*2+2, column=column, columnspan=1, sticky='w')
+            label.grid(row=row+1, column=column, columnspan=1, sticky='w')
+            print(f"col: {column}")
             self.selectedviewimages_list.append(label)
-            self.selectedviewimages_list.append(textlabel)
         except Exception as e:
             print(f"Cannot load image 3: {e}")
 
@@ -740,8 +714,8 @@ class ImageViewer:
         # Save folder paths, current_id, and current_image_indices to settings.json
         settings_data = {
             "folder_paths": self.folder_paths,
-            "current_id": int(self.current_anchor_id),
-            "current_image_indices": [int(a) for a in self.current_image_indices]
+            "current_id": self.current_anchor_id,
+            "current_image_indices": self.current_image_indices
         }
         with open("settings.json", "w") as json_file:
             json.dump(settings_data, json_file)
