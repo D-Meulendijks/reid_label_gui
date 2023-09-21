@@ -9,12 +9,11 @@ import numpy as np
 
 MAX_FILENAME_LENGTH = 8
 
-DESIRED_IMAGE_HEIGHT = 250
-DESIRED_IMAGE_WIDTH = 100
+DESIRED_IMAGE_HEIGHT = 120
+DESIRED_IMAGE_WIDTH = 50
 
 CLICKABLE_ROWS = 3
-CLICKABLE_COLUMNS = 14
-
+CLICKABLE_COLUMNS = 10
 
 DESIRED_ANCHOR_HEIGHT = 350
 DESIRED_ANCHOR_WIDTH = 150
@@ -23,7 +22,7 @@ DESIRED_SELECTVIEW_HEIGHT = 60
 DESIRED_SELECTVIEW_WIDTH = 40
 SELECTEDVIEW_ROWS = 7
 SELECTEDVIEW_COLUMNS = 10
-NUMBER_OF_SKIPS = 2
+NUMBER_OF_SKIPS = 4
 
 
 class ImageViewer:
@@ -31,10 +30,10 @@ class ImageViewer:
         self.root = root
         self.root.title("Image Viewer")
 
-        self.date_offsets = [timedelta(seconds=0, minutes=-20),
-                             timedelta(seconds=0, minutes=1),
-                             timedelta(seconds=0, minutes=1),
-                             timedelta(seconds=0, minutes=-10),
+        self.date_offsets = [timedelta(seconds=0, minutes=0),
+                             timedelta(seconds=0, minutes=0),
+                             timedelta(seconds=0, minutes=0),
+                             timedelta(seconds=0, minutes=0),
                              timedelta(seconds=0)
                              ]
         self.cameranames = ["C1", "C2", "C3", "C4", "C5"]
@@ -55,7 +54,7 @@ class ImageViewer:
         self.current_anchor_id = 0
         self.current_camera = 0 # [0-4]
         self.date_labels = []  # List to store date labels
-        self.anchor_date = "0"
+        self.anchor_date = datetime.now()
 
 
         self.clickable_rows = CLICKABLE_ROWS
@@ -379,11 +378,7 @@ class ImageViewer:
                         self.anchor_image_name_label.config(text=image_name)
                         anchor_datetime = self.offset_date(self.extract_date_from_filename(image_name), image_name)
                         anchor_date = self.datetime_to_string(anchor_datetime)
-                        output_anchor_date_string = ""
-                        for i in range(0, len(anchor_date), 2):
-                            output_anchor_date_string += anchor_date[i:i+2] + ":"
-                        output_anchor_date_string = output_anchor_date_string[:-1]
-                        self.anchor_image_date_label.config(text=output_anchor_date_string)
+                        self.anchor_image_date_label.config(text=anchor_date)
                         self.anchor_date = anchor_datetime
                         anchorset = 1
                         #print(f"Loading image: {folder_name}, {image_name}")
@@ -401,13 +396,9 @@ class ImageViewer:
             self.anchor_image_label.config(image=white_image_tk)
             self.anchor_image_label.image = white_image_tk
             self.anchor_image_name_label.config(text="Not set")
-            anchor_date = self.anchor_date # last known anchor date
-            
-            output_anchor_date_string = ""
-            for i in range(0, len(anchor_date), 2):
-                output_anchor_date_string += anchor_date[i:i+2] + ":"
-            output_anchor_date_string = output_anchor_date_string[:-1]
-            self.anchor_image_date_label.config(text=output_anchor_date_string)
+            anchor_datetime = self.anchor_date # last known anchor date
+            anchor_date = self.datetime_to_string(anchor_datetime)
+            self.anchor_image_date_label.config(text=anchor_date)
         self.update_selectedview()
 
     def resize_image(self, image, desired_width, desired_height):
@@ -515,12 +506,8 @@ class ImageViewer:
 
     def extract_and_update_date(self, filename, n):
         try:
-            output_date_string = ""
             date_datetime = self.offset_date(self.extract_date_from_filename(filename), filename)
-            date_string = self.datetime_to_string(date_datetime)
-            for i in range(0, len(date_string), 2):
-                output_date_string += date_string[i:i+2] + ":"
-            output_date_string = output_date_string[:-1]
+            output_date_string = self.datetime_to_string(date_datetime)
             self.date_labels[n].config(text=output_date_string)
         except Exception as e:
             print(f"Cannot cut [{self.date_cutoff_start}, {self.date_cutoff_end}] from text: {filename}")
@@ -567,7 +554,7 @@ class ImageViewer:
         return filedate
     
     def datetime_to_string(self, date):
-        return date.strftime("%H%M%S")
+        return date.strftime("%H:%M:%S")
 
     def toggle_image_click(self, index):
         if hasattr(self, 'image_files_list') and hasattr(self, 'image_info'):
